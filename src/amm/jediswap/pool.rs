@@ -12,7 +12,7 @@ use crate::amm::{pool::AutomatedMarketMaker, types::Reserves};
 
 // use super::{pool::AutomatedMarketMaker, types::Reserves};
 
-#[derive(Serialize, Deserialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct JediswapPool {
     pub pool_address: Felt,
     pub token_a: Felt,

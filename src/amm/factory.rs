@@ -14,7 +14,7 @@ pub trait AutomatedMarketMakerFactory {
     /// Returns the address of the AMM.
     fn address(&self) -> Felt;
 
-    async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Vec<AMM>
+    async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Vec<Felt>
     where
         P: Provider + Sync + Send;
 }
@@ -35,7 +35,7 @@ macro_rules! factory {
             }
 
 
-            async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Vec<AMM>
+            async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Vec<Felt>
             where
             P: Provider + Sync + Send
             {
