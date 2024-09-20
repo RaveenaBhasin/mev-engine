@@ -46,6 +46,15 @@ pub trait AutomatedMarketMaker {
     async fn get_reserves<P>(&mut self, provider: Arc<P>) -> Result<Reserves, StarknetError>
     where
         P: Provider + Sync + Send;
+
+    /// Populates the AMM data via batched static calls.
+    async fn populate_data<P>(
+        &mut self,
+        block_number: Option<u64>,
+        middleware: Arc<P>,
+    ) -> Result<(), StarknetError>
+    where
+        P: Provider + Sync + Send;
 }
 
 macro_rules! amm {
@@ -96,6 +105,15 @@ macro_rules! amm {
                 match self {
 
                         $(AMM::$pool_type(pool) => pool.get_reserves(provider).await)+
+                }
+            }
+
+            async fn populate_data<P>(&mut self, block_number: Option<u64>, middleware: Arc<P>) -> Result<(), StarknetError>
+            where
+                P: Provider + Send + Sync,
+            {
+                match self {
+                    $(AMM::$pool_type(pool) => pool.populate_data(block_number, middleware).await,)+
                 }
             }
         }

@@ -93,6 +93,18 @@ impl AutomatedMarketMaker for JediswapPool {
             reserve_b,
         })
     }
+
+    async fn populate_data<P>(
+        &mut self,
+        block_number: Option<u64>,
+        middleware: Arc<P>,
+    ) -> Result<(), StarknetError>
+    where
+        P: Provider + Sync + Send,
+    {
+        // batch_request::get_v2_pool_data_batch_request(self, provider.clone()).await?;
+        unimplemented!();
+    }
 }
 
 impl JediswapPool {
