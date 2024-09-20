@@ -7,14 +7,14 @@ use starknet::{
     providers::Provider,
 };
 
-use super::{jediswap::factory::JediswapFactory, pool::AMM, types::Reserves};
+use super::{jediswap::factory::JediswapFactory, pool::AMM};
 
 #[async_trait]
 pub trait AutomatedMarketMakerFactory {
     /// Returns the address of the AMM.
     fn address(&self) -> Felt;
 
-    async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Vec<Felt>
+    async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Result<Vec<AMM>, StarknetError>
     where
         P: Provider + Sync + Send;
 }
@@ -35,7 +35,7 @@ macro_rules! factory {
             }
 
 
-            async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Vec<Felt>
+            async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Result<Vec<AMM>, StarknetError>
             where
             P: Provider + Sync + Send
             {

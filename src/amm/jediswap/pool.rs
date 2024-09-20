@@ -5,7 +5,10 @@ use super::get_data;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet::{
-    core::types::{BlockId, BlockTag, Felt, FunctionCall, StarknetError},
+    core::{
+        types::{BlockId, BlockTag, Felt, FunctionCall, StarknetError},
+        utils::get_selector_from_name,
+    },
     providers::Provider,
 };
 
@@ -73,10 +76,7 @@ impl AutomatedMarketMaker for JediswapPool {
     {
         let call = FunctionCall {
             contract_address: self.pool_address,
-            entry_point_selector: Felt::from_hex(
-                "0x3cb0e1486e633fbe3e2fafe8aedf12b70ca1860e7467ddb75a17858cde39312", //selector for get_reserves
-            )
-            .unwrap(),
+            entry_point_selector: get_selector_from_name("get_reserves").unwrap(),
             calldata: vec![],
         };
 

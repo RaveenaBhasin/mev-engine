@@ -1,8 +1,6 @@
-use core::f64;
-use std::sync::Arc;
+use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use starknet::{
     core::{
@@ -14,7 +12,10 @@ use starknet::{
 
 use crate::amm::{factory::AutomatedMarketMakerFactory, pool::AMM, types::Reserves};
 
-use super::{get_data::get_all_pools, pool::JediswapPool};
+use super::{
+    get_data::{get_all_pools, get_v2_pool_data_batch_request},
+    pool::JediswapPool,
+};
 
 // use super::{pool::AutomatedMarketMaker, types::Reserves};
 
@@ -29,25 +30,27 @@ impl AutomatedMarketMakerFactory for JediswapFactory {
         self.factory_address
     }
 
-    async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Vec<Felt>
+    async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Result<Vec<AMM>, StarknetError>
     where
         P: Provider + Sync + Send,
     {
-        // let call = FunctionCall {
-        //     contract_address: self.factory_address,
-        //     entry_point_selector: Felt::from_hex(
-        //         "0x3e415d1aae9ddb9b1ffdb1f3bb6591b593e0a09748f635cdd067a74aba6f671",
-        //     )
-        //     .unwrap(),
-        //     calldata: vec![],
-        // };
-        // let result = provider
-        //     .call(call, BlockId::Tag(BlockTag::Latest))
-        //     .await
-        //     .unwrap();
+        let pool_addresses = get_all_pools(self, provider.clone()).await.unwrap();
+        let mut all_pools = vec![];
+        let mut first_val = true;
 
-        let result = get_all_pools(self, provider).await;
-        result
+        for pool_address in pool_addresses {
+            if first_val {
+                first_val = false;
+                continue;
+            }
+            let pool = get_v2_pool_data_batch_request(pool_address, provider.clone())
+                .await
+                .unwrap();
+
+            tokio::time::sleep(Duration::from_millis(200)).await;
+            all_pools.push(AMM::JediswapPool(pool));
+        }
+        Ok(all_pools)
     }
 }
 
