@@ -7,7 +7,7 @@ use starknet::{
     providers::Provider,
 };
 
-use super::{jediswap::JediswapPool, types::Reserves};
+use super::{jediswap::pool::JediswapPool, types::Reserves};
 
 #[async_trait]
 pub trait AutomatedMarketMaker {

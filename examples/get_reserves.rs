@@ -6,7 +6,7 @@ use starknet::core::types::Felt;
 use starknet::providers::jsonrpc::HttpTransport;
 use starknet::providers::{JsonRpcClient, Url};
 // use starknet_mev_client::amm::AutomatedMarketMaker;
-use starknet_mev_client::amm::jediswap::JediswapPool;
+use starknet_mev_client::amm::jediswap::pool::JediswapPool;
 
 #[allow(unused)]
 fn create_rpc_provider(
