@@ -1,6 +1,7 @@
 use core::f64;
 use std::sync::Arc;
 
+use super::get_data;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet::{
@@ -98,13 +99,13 @@ impl AutomatedMarketMaker for JediswapPool {
 
     async fn populate_data<P>(
         &mut self,
-        block_number: Option<u64>,
-        middleware: Arc<P>,
+        _block_number: Option<u64>,
+        provider: Arc<P>,
     ) -> Result<(), StarknetError>
     where
         P: Provider + Sync + Send,
     {
-        // batch_request::get_v2_pool_data_batch_request(self, provider.clone()).await?;
+        get_data::get_v2_pool_data_batch_request(self, provider.clone()).await?;
         unimplemented!();
     }
 }
