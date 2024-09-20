@@ -2,14 +2,13 @@ use core::f64;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use starknet::{
     core::types::{BlockId, BlockTag, Felt, FunctionCall, StarknetError},
     providers::Provider,
 };
 
-use super::{AutomatedMarketMaker, Reserves};
+use super::{pool::AutomatedMarketMaker, types::Reserves};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct JediswapPool {
@@ -83,8 +82,8 @@ impl AutomatedMarketMaker for JediswapPool {
             .await
             .unwrap();
 
-        let reserve_a = BigUint::from_bytes_le(&result[0].to_bytes_le());
-        let reserve_b = BigUint::from_bytes_le(&result[2].to_bytes_le());
+        let reserve_a = Felt::from_bytes_le(&result[0].to_bytes_le());
+        let reserve_b = Felt::from_bytes_le(&result[2].to_bytes_le());
 
         self.reserve_a = reserve_a.clone();
         self.reserve_b = reserve_b.clone();
@@ -103,8 +102,8 @@ impl JediswapPool {
         token_b: Felt,
         token_a_decimals: u8,
         token_b_decimals: u8,
-        reserve_a: u128,
-        reserve_b: u128,
+        reserve_a: Felt,
+        reserve_b: Felt,
         fee: u32,
     ) -> JediswapPool {
         JediswapPool {
