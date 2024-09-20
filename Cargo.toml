@@ -1,0 +1,20 @@
+[package]
+name = "starknet-mev-client"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+amms = "0.6.3"
+async-trait = "0.1.82"
+num-bigint = "0.4.6"
+num-traits = "0.2.19"
+serde = "1.0.210"
+starknet = "0.11.0"
+tokio = { version = "1.38", features = ["rt-multi-thread"] }
+
+[lib]
+name = "starknet_mev_client"
+crate-type = ["lib"]
+
+
+
