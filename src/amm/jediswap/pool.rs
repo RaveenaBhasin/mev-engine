@@ -105,7 +105,7 @@ impl AutomatedMarketMaker for JediswapPool {
     where
         P: Provider + Sync + Send,
     {
-        get_data::get_v2_pool_data_batch_request(self, provider.clone()).await?;
+        get_data::get_v2_pool_data_batch_request(self.pool_address, provider.clone()).await?;
         unimplemented!();
     }
 }

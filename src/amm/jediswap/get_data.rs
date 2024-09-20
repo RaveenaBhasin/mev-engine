@@ -1,13 +1,16 @@
 use std::sync::Arc;
 
-use starknet::{core::types::StarknetError, providers::Provider};
+use starknet::{
+    core::types::{Felt, StarknetError},
+    providers::Provider,
+};
 
 use crate::{amm::pool::AutomatedMarketMaker, utils::call_contract};
 
 use super::pool::JediswapPool;
 
 pub async fn get_v2_pool_data_batch_request<P>(
-    pool: &mut JediswapPool,
+    pool_address: Felt,
     provider: Arc<P>,
 ) -> Result<(), StarknetError>
 where
@@ -37,8 +40,35 @@ where
     //     }
     // }
 
-    let tokne0_return =
-        call_contract(provider.clone(), pool.address(), "token0".into(), vec![]).await;
+    let token0 = call_contract(provider.clone(), pool_address, "token0".into(), vec![])
+        .await
+        .unwrap();
+    let token_0_address = token0[0];
+
+    let token1 = call_contract(provider.clone(), pool_address, "token1".into(), vec![])
+        .await
+        .unwrap();
+    let token_1_address = token1[0];
+
+    let token0_decimals =
+        call_contract(provider.clone(), token_0_address, "decimals".into(), vec![])
+            .await
+            .unwrap()[0];
+    let token0_decimals_parsed =
+        u8::from_le_bytes(token0_decimals.to_bytes_le()[0..1].try_into().unwrap());
+
+    let token1_decimals =
+        call_contract(provider.clone(), token_1_address, "decimals".into(), vec![])
+            .await
+            .unwrap()[0];
+
+    let token1_decimals_parsed =
+        u8::from_le_bytes(token1_decimals.to_bytes_le()[0..1].try_into().unwrap());
+
+    print!(
+        " {:?} {:?} {:?} {:?}",
+        token_0_address, token_1_address, token0_decimals_parsed, token1_decimals_parsed
+    );
 
     Ok(())
 }
