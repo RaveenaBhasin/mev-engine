@@ -11,7 +11,7 @@ pub async fn get_v2_pool_data_batch_request<P>(
     provider: Arc<P>,
 ) -> Result<(), StarknetError>
 where
-    P: Provider,
+    P: Provider + Send + Sync,
 {
     // let deployer = IGetUniswapV2PoolDataBatchRequest::deploy_builder(provider, vec![pool.address]);
     // let res = deployer.call_raw().await?;
@@ -37,7 +37,8 @@ where
     //     }
     // }
 
-    // call_contract(pprovider, pool.address(), method, calldata);
+    let tokne0_return =
+        call_contract(provider.clone(), pool.address(), "token0".into(), vec![]).await;
 
     Ok(())
 }
