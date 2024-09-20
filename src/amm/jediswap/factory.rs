@@ -14,7 +14,7 @@ use starknet::{
 
 use crate::amm::{factory::AutomatedMarketMakerFactory, pool::AMM, types::Reserves};
 
-use super::pool::JediswapPool;
+use super::{get_data::get_all_pools, pool::JediswapPool};
 
 // use super::{pool::AutomatedMarketMaker, types::Reserves};
 
@@ -33,18 +33,20 @@ impl AutomatedMarketMakerFactory for JediswapFactory {
     where
         P: Provider + Sync + Send,
     {
-        let call = FunctionCall {
-            contract_address: self.factory_address,
-            entry_point_selector: Felt::from_hex(
-                "0x28ed435a719e8c0f61e6e9ba51b6b65862756bac4a23eee295bab4d097fa57c",
-            )
-            .unwrap(),
-            calldata: vec![],
-        };
-        let result = provider
-            .call(call, BlockId::Tag(BlockTag::Latest))
-            .await
-            .unwrap();
+        // let call = FunctionCall {
+        //     contract_address: self.factory_address,
+        //     entry_point_selector: Felt::from_hex(
+        //         "0x3e415d1aae9ddb9b1ffdb1f3bb6591b593e0a09748f635cdd067a74aba6f671",
+        //     )
+        //     .unwrap(),
+        //     calldata: vec![],
+        // };
+        // let result = provider
+        //     .call(call, BlockId::Tag(BlockTag::Latest))
+        //     .await
+        //     .unwrap();
+
+        let result = get_all_pools(self, provider).await;
         result
     }
 }
@@ -52,43 +54,5 @@ impl AutomatedMarketMakerFactory for JediswapFactory {
 impl JediswapFactory {
     pub fn new(factory_address: Felt) -> JediswapFactory {
         JediswapFactory { factory_address }
-    }
-
-    pub async fn get_all_pools_via_batched_request<P>(&mut self, provider: Arc<P>) -> Vec<Felt>
-    where
-        P: Provider + Sync + Send,
-    {
-        let all_pairs_selector = get_selector_from_name("get_num_of_pairs").unwrap();
-        let call = FunctionCall {
-            contract_address: self.factory_address,
-            entry_point_selector: all_pairs_selector,
-            calldata: vec![],
-        };
-        let result = provider
-            .call(call, BlockId::Tag(BlockTag::Latest))
-            .await
-            .unwrap();
-        // result
-
-        let pairs_length = BigUint::from_bytes_be(&result[0].to_bytes_be());
-
-        let mut pairs = vec![];
-        let step = BigUint::from(100u32);
-        let mut idx_from = BigUint::from(0u32);
-        let mut idx_to = if &step > &pairs_length {
-            pairs_length.clone()
-        } else {
-            step.clone()
-        };
-
-        let mut amms = vec![];
-        for addr in pairs {
-            let amm = JediswapPool {
-                pool_address: addr,
-                ..Default::default()
-            };
-            amms.push(AMM::JediswapPool(amm));
-        }
-        result
     }
 }

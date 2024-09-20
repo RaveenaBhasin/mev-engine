@@ -1,10 +1,17 @@
 use std::sync::Arc;
 
-use starknet::{core::types::StarknetError, providers::Provider};
+use amms::amm::factory;
+use starknet::{
+    core::types::{Felt, FunctionCall, StarknetError},
+    providers::Provider,
+};
 
-use crate::{amm::pool::AutomatedMarketMaker, utils::call_contract};
+use crate::{
+    amm::{factory::AutomatedMarketMakerFactory, pool::AutomatedMarketMaker},
+    utils::call_contract,
+};
 
-use super::pool::JediswapPool;
+use super::{factory::JediswapFactory, pool::JediswapPool};
 
 pub async fn get_v2_pool_data_batch_request<P>(
     pool: &mut JediswapPool,
@@ -41,4 +48,19 @@ where
         call_contract(provider.clone(), pool.address(), "token0".into(), vec![]).await;
 
     Ok(())
+}
+
+pub async fn get_all_pools<P>(factory: &mut JediswapFactory, provider: Arc<P>) -> Vec<Felt>
+where
+    P: Provider + Send + Sync,
+{
+    let all_pairs = call_contract(
+        provider.clone(),
+        factory.address(),
+        "get_all_pairs".into(),
+        vec![],
+    )
+    .await
+    .unwrap();
+    all_pairs
 }
