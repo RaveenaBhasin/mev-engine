@@ -10,7 +10,10 @@ use starknet::{
     providers::Provider,
 };
 
-use crate::amm::{factory::AutomatedMarketMakerFactory, pool::AMM, types::Reserves};
+use crate::{
+    amm::{factory::AutomatedMarketMakerFactory, pool::AMM, types::Reserves},
+    errors::AMMError,
+};
 
 use super::get_data::{get_all_pools, get_pool_info};
 
@@ -27,7 +30,7 @@ impl AutomatedMarketMakerFactory for JediswapFactory {
         self.factory_address
     }
 
-    async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Result<Vec<AMM>, StarknetError>
+    async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Result<Vec<AMM>, AMMError>
     where
         P: Provider + Sync + Send,
     {

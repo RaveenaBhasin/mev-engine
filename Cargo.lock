@@ -3524,7 +3524,9 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "serde",
+ "serde_json",
  "starknet",
+ "thiserror",
  "tokio",
 ]
 
