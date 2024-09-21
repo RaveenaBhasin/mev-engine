@@ -3524,8 +3524,10 @@ dependencies = [
  "num-bigint",
  "num-traits",
  "serde",
+ "serde_json",
  "starknet",
  "tokio",
+ "tracing",
 ]
 
 [[package]]
