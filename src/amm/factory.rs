@@ -1,9 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
+use futures::stream::{FuturesUnordered, StreamExt};
 use serde::{Deserialize, Serialize};
 use starknet::{
-    core::types::{Felt, StarknetError},
+    core::types::{EventFilter, Felt, StarknetError},
     providers::Provider,
 };
 
@@ -19,20 +20,32 @@ pub trait AutomatedMarketMakerFactory {
     async fn fetch_all_pools<P>(&mut self, provider: Arc<P>) -> Result<Vec<AMM>, AMMError>
     where
         P: Provider + Sync + Send;
+
+    fn amm_created_event_signature(&self) -> Felt;
+
+    /// Populates all AMMs data via batched static calls.
+    async fn populate_amm_data<P>(
+        &self,
+        amms: &mut [AMM],
+        block_number: Option<u64>,
+        provider: Arc<P>,
+    ) -> Result<(), AMMError>
+    where
+        P: Provider + Send + Sync;
 }
 
 macro_rules! factory {
-    ($($pool_type:ident),+ $(,)?) => {
+    ($($factory_type:ident),+ $(,)?) => {
         #[derive(Debug, Clone, Serialize, Deserialize)]
         pub enum Factory {
-            $($pool_type($pool_type),)+
+            $($factory_type($factory_type),)+
         }
 
         #[async_trait]
         impl AutomatedMarketMakerFactory for Factory {
             fn address(&self) -> Felt{
                 match self {
-                    $(Factory::$pool_type(pool) => pool.address(),)+
+                    $(Factory::$factory_type(pool) => pool.address(),)+
                 }
             }
 
@@ -42,7 +55,30 @@ macro_rules! factory {
             P: Provider + Sync + Send
             {
                 match self {
-                        $(Factory::$pool_type(pool) => pool.fetch_all_pools(provider).await)+
+                        $(Factory::$factory_type(pool) => pool.fetch_all_pools(provider).await)+
+                }
+            }
+
+            fn amm_created_event_signature(&self) -> Felt {
+                match self {
+                    $(Factory::$factory_type(factory) => factory.amm_created_event_signature(),)+
+                }
+            }
+
+
+            async fn populate_amm_data<P>(
+                &self,
+                amms: &mut [AMM],
+                block_number: Option<u64>,
+                provider: Arc<P>,
+            ) -> Result<(), AMMError>
+            where
+                P: Provider + Send + Sync
+            {
+                match self {
+                    $(Factory::$factory_type(factory) => {
+                        factory.populate_amm_data(amms, block_number, provider).await
+                    },)+
                 }
             }
         }
@@ -59,3 +95,57 @@ macro_rules! factory {
 }
 
 factory!(JediswapFactory);
+
+impl Factory {
+    #[allow(unused)]
+    pub async fn get_all_pools_from_logs<P>(
+        &self,
+        mut from_block: u64,
+        to_block: u64,
+        step: u64,
+        provider: Arc<P>,
+    ) -> Result<Vec<AMM>, AMMError>
+    where
+        P: Provider,
+    {
+        let factory_address = self.address();
+        let amm_created_event_signature = self.amm_created_event_signature();
+        // let mut futures = FuturesUnordered::new();
+
+        let mut aggregated_amms: Vec<AMM> = vec![];
+
+        while from_block < to_block {
+            let provider = provider.clone();
+            let mut target_block = from_block + step - 1;
+            if target_block > to_block {
+                target_block = to_block;
+            }
+
+            // let filter = EventFilter::new()
+            //     .event_signature(amm_created_event_signature)
+            //     .address(factory_address)
+            //     .from_block(from_block)
+            //     .to_block(target_block);
+            // let filter = EventFilter {
+            //     from_block: Some(from_block),
+            //     to_block: Some(to_block),
+            //     address,
+            //     keys,
+            // };
+
+            // futures.push(async move { provider.get_logs(&filter).await });
+
+            // from_block += step;
+        }
+
+        // while let Some(result) = futures.next().await {
+        //     let logs = result.map_err(AMMError::TransportError)?;
+        //
+        //     for log in logs {
+        //         aggregated_amms.push(self.new_empty_amm_from_log(log).unwrap());
+        //     }
+        // }
+
+        Ok(aggregated_amms)
+    }
+}
