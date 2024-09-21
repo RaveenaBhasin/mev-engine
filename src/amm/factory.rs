@@ -8,7 +8,7 @@ use starknet::{
     providers::Provider,
 };
 
-use super::{jediswap::factory::JediswapFactory, pool::AMM, tenKSwap::factory::TenKFactory};
+use super::{jediswap::factory::JediswapFactory, pool::AMM, tenkswap::factory::TenKFactory};
 use crate::errors::AMMError;
 
 #[async_trait]

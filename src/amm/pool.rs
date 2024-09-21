@@ -1,4 +1,4 @@
-use std::{sync::Arc};
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -7,8 +7,8 @@ use starknet::{
     providers::Provider,
 };
 
-use super::{jediswap::pool::JediswapPool};
-use crate::amm::tenKSwap::pool::TenkSwapPool;
+use super::jediswap::pool::JediswapPool;
+use crate::amm::tenkswap::pool::TenkSwapPool;
 
 #[async_trait]
 pub trait AutomatedMarketMaker {

@@ -19,7 +19,7 @@ use crate::{
     amm::{
         factory::{AutomatedMarketMakerFactory, Factory},
         jediswap::{self, factory::JediswapFactory},
-        tenKSwap::{self, factory::TenKFactory},
+        tenkswap::{self, factory::TenKFactory},
     },
     errors::{AMMError, CheckpointError},
 };

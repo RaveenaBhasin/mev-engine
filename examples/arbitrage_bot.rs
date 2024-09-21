@@ -1,6 +1,6 @@
 use mev_engine::amm::jediswap::pool::JediswapPool;
 use mev_engine::amm::pool::{AutomatedMarketMaker, AMM};
-use mev_engine::amm::tenKSwap::pool::TenkSwapPool;
+use mev_engine::amm::tenkswap::pool::TenkSwapPool;
 use starknet::core::types::Felt;
 use starknet::providers::jsonrpc::HttpTransport;
 use starknet::providers::{JsonRpcClient, Provider, Url};
