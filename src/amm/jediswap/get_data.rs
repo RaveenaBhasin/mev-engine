@@ -39,10 +39,10 @@ where
     let token1_decimals_parsed =
         u8::from_le_bytes(token1_decimals.to_bytes_le()[0..1].try_into().unwrap());
 
-    print!(
-        " {:?} {:?} {:?} {:?}",
-        token_0_address, token_1_address, token0_decimals_parsed, token1_decimals_parsed
-    );
+    // print!(
+    //     " {:?} {:?} {:?} {:?}",
+    //     token_0_address, token_1_address, token0_decimals_parsed, token1_decimals_parsed
+    // );
 
     let reserves_result = call_contract(provider.clone(), pool_address, "get_reserves", vec![])
         .await

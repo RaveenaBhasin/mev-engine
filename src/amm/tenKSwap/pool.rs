@@ -13,7 +13,12 @@ use starknet::{
 };
 use tracing::instrument;
 
-use crate::amm::{pool::AutomatedMarketMaker, types::Reserves};
+use crate::{
+    amm::{pool::AutomatedMarketMaker, types::Reserves},
+    errors::AMMError,
+};
+
+use super::get_data::get_pool_info;
 
 // use super::{pool::AutomatedMarketMaker, types::Reserves};
 
@@ -56,8 +61,16 @@ impl AutomatedMarketMaker for TenkSwapPool {
         P: Provider + Sync + Send,
     {
         if self.token_a == base_token {
+            // println!(
+            //     "amount out {:?}",
+            //     self.get_amount_out(amount_in, self.reserve_a, self.reserve_b)
+            // );
             Ok(self.get_amount_out(amount_in, self.reserve_a, self.reserve_b))
         } else {
+            // println!(
+            //     "amount out {:?}",
+            //     self.get_amount_out(amount_in, self.reserve_b, self.reserve_a)
+            // );
             Ok(self.get_amount_out(amount_in, self.reserve_b, self.reserve_a))
         }
     }
@@ -116,10 +129,15 @@ impl TenkSwapPool {
         }
     }
 
-    fn get_amount_out(&self, amount_in: Felt, reserve_in: Felt, reserve_out: Felt) -> Felt {
+    pub fn get_amount_out(&self, amount_in: Felt, reserve_in: Felt, reserve_out: Felt) -> Felt {
         let amount_in = BigUint::from_bytes_be(&amount_in.to_bytes_be());
         let reserve_in = BigUint::from_bytes_be(&reserve_in.to_bytes_be());
         let reserve_out = BigUint::from_bytes_be(&reserve_out.to_bytes_be());
+
+        print!(
+            "Reserves in get_amount_out {:?} {:?}",
+            reserve_in, reserve_out
+        );
 
         if amount_in == BigUint::from(0u32)
             || reserve_in == BigUint::from(0u32)
@@ -163,5 +181,19 @@ impl TenkSwapPool {
             reserve_a,
             reserve_b,
         })
+    }
+
+    pub async fn new_from_address<P>(
+        pool_address: Felt,
+        fee: u32,
+        provider: Arc<P>,
+    ) -> Result<Self, AMMError>
+    where
+        P: Provider + Send + Sync,
+    {
+        let mut pool = get_pool_info(pool_address, provider).await.unwrap();
+        pool.fee = fee;
+
+        Ok(pool)
     }
 }
