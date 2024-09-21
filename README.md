@@ -1,5 +1,19 @@
-MEV-Engine 
+# MEV-Engine
+A tool to help you find mev transaction on starknet.
 
-MEV-Engine is a library written in Rust which is a simple and modular framework for writing MEV bots or strategies.
-MEV searchers face significant challenges when tracking opportunities across different protocols. Each protocol often has its own unique architecture, transaction sequencing, and state synchronization patterns, requiring searchers to constantly adapt their bots to monitor various sources for profitable trades. 
-This crate is implemented by keeping modularity in mind to interact with a variety of AMMs for now. We also plan to extend this library for aggregating various lending-borrowing protocols as well.
+## Installation
+The library is published at [Crates Repository](https://crates.io/crates/mev-engine). To install run
+```bash 
+cargo add mev-engine
+```
+
+## Run an example
+Check the `examples` folder to check out how the Repository can be leveraged complex strategies.
+```bash
+cargo run --example arbitrage_bot
+```
+
+This repository has been written keeping modularity in mind. Say if you want to add an AMM, one has to implement the required traits,
+and everything works out of the box.
+
+

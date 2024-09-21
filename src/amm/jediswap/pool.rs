@@ -1,7 +1,7 @@
 use core::f64;
 use std::sync::Arc;
 
-use super::get_data::{self, get_pool_info};
+use super::get_data::get_pool_info;
 use crate::{
     amm::{pool::AutomatedMarketMaker, types::Reserves},
     errors::AMMError,

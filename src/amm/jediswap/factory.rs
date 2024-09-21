@@ -2,13 +2,7 @@ use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet::{
-    core::{
-        types::{BlockId, BlockTag, Felt, FunctionCall, StarknetError},
-
-    },
-    providers::Provider,
-};
+use starknet::{core::types::Felt, providers::Provider};
 
 use crate::{
     amm::{
@@ -18,10 +12,7 @@ use crate::{
     errors::AMMError,
 };
 
-use super::{
-    get_data::{get_all_pools, get_pool_info},
-};
-
+use super::get_data::{get_all_pools, get_pool_info};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct JediswapFactory {
