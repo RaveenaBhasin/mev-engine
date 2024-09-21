@@ -54,7 +54,7 @@ macro_rules! factory {
             P: Provider + Sync + Send
             {
                 match self {
-                        $(Factory::$factory_type(pool) => pool.fetch_all_pools(provider).await)+
+                        $(Factory::$factory_type(pool) => pool.fetch_all_pools(provider).await,)+
                 }
             }
 

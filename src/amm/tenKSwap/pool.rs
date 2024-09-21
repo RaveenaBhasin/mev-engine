@@ -11,6 +11,7 @@ use starknet::{
     },
     providers::Provider,
 };
+use tracing::instrument;
 
 use crate::amm::{pool::AutomatedMarketMaker, types::Reserves};
 
@@ -74,31 +75,21 @@ impl AutomatedMarketMaker for TenkSwapPool {
         unimplemented!()
     }
 
-    async fn get_reserves<P>(&mut self, provider: Arc<P>) -> Result<Reserves, StarknetError>
+    #[instrument(skip(self, provider), level = "debug")]
+    async fn sync<P>(&mut self, provider: Arc<P>) -> Result<(), StarknetError>
     where
-        P: Provider + Sync + Send,
+        P: Provider + Send + Sync,
     {
-        let call = FunctionCall {
-            contract_address: self.pool_address,
-            entry_point_selector: get_selector_from_name("get_reserves").unwrap(),
-            calldata: vec![],
-        };
-
-        let result = provider
-            .call(call, BlockId::Tag(BlockTag::Latest))
-            .await
-            .unwrap();
-
-        let reserve_a = Felt::from_bytes_le(&result[0].to_bytes_le());
-        let reserve_b = Felt::from_bytes_le(&result[2].to_bytes_le());
-
-        self.reserve_a = reserve_a.clone();
-        self.reserve_b = reserve_b.clone();
-        // let block_timestamp_last = BigUint::from_bytes_le(&result[2].to_bytes_le());
-        Ok(Reserves {
+        let Reserves {
             reserve_a,
             reserve_b,
-        })
+        } = self.get_reserves(provider.clone()).await?;
+        tracing::info!(?reserve_a, ?reserve_b, address = ?self.address(), "UniswapV2 sync");
+
+        self.reserve_a = reserve_a;
+        self.reserve_b = reserve_b;
+
+        Ok(())
     }
 }
 
@@ -145,5 +136,32 @@ impl TenkSwapPool {
         let result = &numerator / &denominator;
 
         Felt::from_bytes_be_slice(&result.to_bytes_be())
+    }
+
+    async fn get_reserves<P>(&mut self, provider: Arc<P>) -> Result<Reserves, StarknetError>
+    where
+        P: Provider + Sync + Send,
+    {
+        let call = FunctionCall {
+            contract_address: self.pool_address,
+            entry_point_selector: get_selector_from_name("get_reserves").unwrap(),
+            calldata: vec![],
+        };
+
+        let result = provider
+            .call(call, BlockId::Tag(BlockTag::Latest))
+            .await
+            .unwrap();
+
+        let reserve_a = Felt::from_bytes_le(&result[0].to_bytes_le());
+        let reserve_b = Felt::from_bytes_le(&result[2].to_bytes_le());
+
+        self.reserve_a = reserve_a.clone();
+        self.reserve_b = reserve_b.clone();
+        // let block_timestamp_last = BigUint::from_bytes_le(&result[2].to_bytes_le());
+        Ok(Reserves {
+            reserve_a,
+            reserve_b,
+        })
     }
 }

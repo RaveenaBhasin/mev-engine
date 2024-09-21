@@ -9,7 +9,7 @@ use crate::{amm::factory::AutomatedMarketMakerFactory, utils::call_contract};
 
 use super::{factory::JediswapFactory, pool::JediswapPool};
 
-pub async fn get_v2_pool_data_batch_request<P>(
+pub async fn get_pool_info<P>(
     pool_address: Felt,
     provider: Arc<P>,
 ) -> Result<JediswapPool, StarknetError>

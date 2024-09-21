@@ -1,31 +1,18 @@
-use std::{io::Stderr, sync::Arc};
+use std::sync::Arc;
 
-use starknet::{
-    core::types::{Felt, StarknetError},
-    providers::Provider,
-};
+use starknet::{core::types::Felt, providers::Provider};
 
-use super::{factory::TenKFactory, pool::TenkSwapPool};
+use super::pool::TenkSwapPool;
+use crate::errors::AMMError;
 use crate::utils::call_contract;
-use crate::{amm::pool::AMM, errors::AMMError};
 
-pub async fn get_all_pools<P>(
-    factory_address: Felt,
-    idx: u64,
+pub async fn get_pool_info<P>(
+    pool_address: Felt,
     provider: Arc<P>,
 ) -> Result<TenkSwapPool, AMMError>
 where
     P: Provider + Send + Sync,
 {
-    let pool_address = call_contract(
-        provider.clone(),
-        factory_address,
-        "allPairs",
-        vec![Felt::from(idx)],
-    )
-    .await
-    .unwrap()[0];
-
     let token0 = call_contract(provider.clone(), pool_address, "token0", vec![])
         .await
         .unwrap();

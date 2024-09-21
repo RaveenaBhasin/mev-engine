@@ -1,25 +1,16 @@
-use std::{sync::Arc, time::Duration};
-
-use amms::amm::IErc20::new;
+use crate::amm::pool::AutomatedMarketMaker;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
-use starknet::{
-    core::{
-        types::{Felt, FunctionCall, StarknetError},
-        utils::get_selector_from_name,
-    },
-    providers::Provider,
-};
+use starknet::{core::types::Felt, providers::Provider};
+use std::sync::Arc;
 
 use crate::{
-    amm::{factory::AutomatedMarketMakerFactory, pool::AMM, types::Reserves},
+    amm::{factory::AutomatedMarketMakerFactory, pool::AMM},
     errors::AMMError,
     utils::call_contract,
 };
 
-use super::{get_data::get_all_pools, pool::TenkSwapPool};
-
-// use super::{pool::AutomatedMarketMaker, types::Reserves};
+use super::get_data::get_pool_info;
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct TenKFactory {
@@ -71,12 +62,40 @@ impl AutomatedMarketMakerFactory for TenKFactory {
         let mut all_pools = vec![];
 
         for idx in 0..pools_length_parsed {
-            let pool = get_all_pools(self.factory_address, idx, provider.clone())
-                .await
-                .unwrap();
+            let pool_address = call_contract(
+                provider.clone(),
+                self.address(),
+                "allPairs",
+                vec![Felt::from(idx)],
+            )
+            .await
+            .unwrap()[0];
+
+            let pool = get_pool_info(pool_address, provider.clone()).await.unwrap();
             all_pools.push(AMM::TenkSwapPool(pool));
         }
         Ok(all_pools)
+    }
+
+    fn amm_created_event_signature(&self) -> Felt {
+        Felt::ONE
+    }
+
+    async fn populate_amm_data<P>(
+        &self,
+        amms: &mut [AMM],
+        _block_number: Option<u64>,
+        middleware: Arc<P>,
+    ) -> Result<(), AMMError>
+    where
+        P: Provider + Sync + Send,
+    {
+        for amm in amms {
+            get_pool_info(amm.address(), middleware.clone())
+                .await
+                .unwrap();
+        }
+        Ok(())
     }
 }
 

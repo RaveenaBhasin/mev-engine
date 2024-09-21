@@ -104,7 +104,6 @@ macro_rules! amm {
             }
 
 
-
             // async fn populate_data<P>(&mut self, middleware: Arc<P>) -> Result<(), StarknetError>
             // where
             //     P: Provider + Send + Sync,

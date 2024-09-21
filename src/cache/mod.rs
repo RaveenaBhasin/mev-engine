@@ -19,6 +19,7 @@ use crate::{
     amm::{
         factory::{AutomatedMarketMakerFactory, Factory},
         jediswap::{self, factory::JediswapFactory},
+        tenKSwap::{self, factory::TenKFactory},
     },
     errors::{AMMError, CheckpointError},
 };
@@ -63,7 +64,7 @@ where
         serde_json::from_str(read_to_string(&path_to_checkpoint)?.as_str())?;
 
     // Sort all of the pools from the checkpoint into uniswap_v2_pools and uniswap_v3_pools pools so we can sync them concurrently
-    let jediswap_pools = sort_amms(checkpoint.amms);
+    let (jediswap_pools, tenkswap_pools) = sort_amms(checkpoint.amms);
 
     let mut aggregated_amms = vec![];
     let mut handles = vec![];
@@ -72,6 +73,14 @@ where
     if !jediswap_pools.is_empty() {
         handles.push(
             batch_sync_amms_from_checkpoint(jediswap_pools, Some(current_block), provider.clone())
+                .await,
+        );
+    }
+
+    // Sync all uniswap v2 pools from checkpoint
+    if !tenkswap_pools.is_empty() {
+        handles.push(
+            batch_sync_amms_from_checkpoint(tenkswap_pools, Some(current_block), provider.clone())
                 .await,
         );
     }
@@ -160,6 +169,7 @@ where
 {
     let factory = match amms[0] {
         AMM::JediswapPool(_) => Some(Factory::JediswapFactory(JediswapFactory::new(Felt::ZERO))),
+        AMM::TenkSwapPool(_) => Some(Factory::TenKFactory(TenKFactory::new(Felt::ZERO))),
     };
 
     // Spawn a new thread to get all pools and sync data for each dex
@@ -183,15 +193,17 @@ where
     })
 }
 
-pub fn sort_amms(amms: Vec<AMM>) -> Vec<AMM> {
+pub fn sort_amms(amms: Vec<AMM>) -> (Vec<AMM>, Vec<AMM>) {
     let mut jediswap_pools = vec![];
+    let mut tenkswap_pools = vec![];
     for amm in amms {
         match amm {
             AMM::JediswapPool(_) => jediswap_pools.push(amm),
+            AMM::TenkSwapPool(_) => tenkswap_pools.push(amm),
         }
     }
 
-    jediswap_pools
+    (jediswap_pools, tenkswap_pools)
 }
 
 pub fn amms_are_congruent(amms: &[AMM]) -> bool {
