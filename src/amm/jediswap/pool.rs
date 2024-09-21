@@ -1,8 +1,11 @@
 use core::f64;
 use std::sync::Arc;
 
-use super::get_data;
-use crate::amm::{pool::AutomatedMarketMaker, types::Reserves};
+use super::get_data::{self, get_pool_info};
+use crate::{
+    amm::{pool::AutomatedMarketMaker, types::Reserves},
+    errors::AMMError,
+};
 use async_trait::async_trait;
 use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
@@ -161,5 +164,19 @@ impl JediswapPool {
             reserve_a,
             reserve_b,
         })
+    }
+
+    pub async fn new_from_address<P>(
+        pool_address: Felt,
+        fee: u32,
+        provider: Arc<P>,
+    ) -> Result<Self, AMMError>
+    where
+        P: Provider + Send + Sync,
+    {
+        let mut pool = get_pool_info(pool_address, provider).await.unwrap();
+        pool.fee = fee;
+
+        Ok(pool)
     }
 }

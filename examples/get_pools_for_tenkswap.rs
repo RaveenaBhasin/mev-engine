@@ -5,6 +5,7 @@ use starknet_mev_client::amm::factory::AutomatedMarketMakerFactory;
 use starknet_mev_client::amm::pool::AutomatedMarketMaker;
 use starknet_mev_client::amm::tenKSwap::factory::TenKFactory;
 use starknet_mev_client::amm::tenKSwap::get_data;
+use starknet_mev_client::amm::tenKSwap::pool::TenkSwapPool;
 use std::sync::Arc;
 use tokio;
 // use starknet_mev_client::amm::AutomatedMarketMaker;
@@ -21,25 +22,37 @@ fn create_rpc_provider(
 
 #[tokio::main]
 async fn main() {
-    let mut factory = TenKFactory::new(
-        Felt::from_hex("0x1c0a36e26a8f822e0d81f20a5a562b16a8f8a3dfd99801367dd2aea8f1a87a2")
-            .unwrap(),
-    );
-
-    print!("Initialise factory {:?}", factory);
-
+    // let mut factory = TenKFactory::new(
+    //     Felt::from_hex("0x1c0a36e26a8f822e0d81f20a5a562b16a8f8a3dfd99801367dd2aea8f1a87a2")
+    //         .unwrap(),
+    // );
+    //
+    // print!("Initialise factory {:?}", factory);
+    //
     let rpc_url = "https://starknet-mainnet.public.blastapi.io/rpc/v0_7";
     let provider = create_rpc_provider(rpc_url).unwrap();
-    let pools = factory.fetch_all_pools(provider.clone()).await.unwrap();
-    let pool  = &pools[0];
-    println!("Fetched pools: {:?}", pool);
+    // let pools = factory.fetch_all_pools(provider.clone()).await.unwrap();
+    // let pool = &pools[1];
+    // println!("Fetched pools: {:?}", pool);
+
+    let pool = TenkSwapPool::new_from_address(
+        Felt::from_hex("0x17e9e62c04b50800d7c59454754fe31a2193c9c3c6c92c093f2ab0faadf8c87")
+            .unwrap(),
+        30u32,
+        provider.clone(),
+    )
+    .await
+    .unwrap();
 
     pool.simulate_swap(
-        Felt::from_hex("0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7").unwrap(), 
-        Felt::from_hex("0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8").unwrap(), 
+        Felt::from_hex("0xda114221cb83fa859dbdb4c44beeaa0bb37c7537ad5ae66fe5e0efd20e6eb3").unwrap(),
+        Felt::from_hex("0x49d36570d4e46f48e99674bd3fcc84644ddd6b96f7c741b1562b82f9e004dc7")
+            .unwrap(),
         Felt::from(100u32),
-        provider
-    );
+        provider.clone(),
+    )
+    .await
+    .unwrap();
 
     // get_data::get_v2_pool_data_batch_request(pools[0], provider)
     //     .await
