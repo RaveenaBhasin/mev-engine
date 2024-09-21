@@ -11,7 +11,10 @@ use starknet::{
 };
 
 use crate::{
-    amm::{factory::AutomatedMarketMakerFactory, pool::AMM, types::Reserves},
+    amm::{
+        factory::AutomatedMarketMakerFactory,
+        pool::{AutomatedMarketMaker, AMM},
+    },
     errors::AMMError,
 };
 
@@ -54,6 +57,27 @@ impl AutomatedMarketMakerFactory for JediswapFactory {
             all_pools.push(AMM::JediswapPool(pool));
         }
         Ok(all_pools)
+    }
+
+    async fn populate_amm_data<P>(
+        &self,
+        amms: &mut [AMM],
+        _block_number: Option<u64>,
+        middleware: Arc<P>,
+    ) -> Result<(), AMMError>
+    where
+        P: Provider + Sync + Send,
+    {
+        for amm in amms {
+            get_pool_info(amm.address(), middleware.clone())
+                .await
+                .unwrap();
+        }
+        Ok(())
+    }
+
+    fn amm_created_event_signature(&self) -> Felt {
+        Felt::ONE
     }
 }
 

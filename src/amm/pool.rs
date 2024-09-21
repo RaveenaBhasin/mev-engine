@@ -1,4 +1,4 @@
-use std::sync::Arc;
+use std::{io::Stderr, sync::Arc};
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
@@ -17,6 +17,10 @@ pub trait AutomatedMarketMaker {
 
     /// Returns a vector of tokens in the AMM.
     fn tokens(&self) -> Vec<Felt>;
+
+    async fn sync<P>(&mut self, provider: Arc<P>) -> Result<(), StarknetError>
+    where
+        P: Provider + Send + Sync;
 
     /// Calculates a f64 representation of base token price in the AMM.
     fn calculate_price(&self, base_token: Felt, quote_token: Felt) -> Result<f64, StarknetError>;
@@ -44,10 +48,6 @@ pub trait AutomatedMarketMaker {
         amount_in: Felt,
     ) -> Result<Felt, StarknetError>;
 
-    async fn get_reserves<P>(&mut self, provider: Arc<P>) -> Result<Reserves, StarknetError>
-    where
-        P: Provider + Sync + Send;
-
     // async fn populate_data<P>(&mut self, middleware: Arc<P>) -> Result<(), StarknetError>
     // where
     //     P: Provider + Sync + Send;
@@ -68,6 +68,21 @@ macro_rules! amm {
                 }
             }
 
+            fn tokens(&self) -> Vec<Felt> {
+                match self {
+                    $(AMM::$pool_type(pool) => pool.tokens(),)+
+                }
+            }
+
+            async fn sync<P>(&mut self, middleware: Arc<P>) -> Result<(), StarknetError>
+            where
+                P: Provider + Send + Sync,
+            {
+                match self {
+                    $(AMM::$pool_type(pool) => pool.sync(middleware).await,)+
+                }
+            }
+
 
             async fn simulate_swap<P>(&self, base_token: Felt, quote_token: Felt, amount_in: Felt, provider: Arc<P>) -> Result<Felt, StarknetError> where P: Provider + Send + Sync {
                 match self {
@@ -81,11 +96,6 @@ macro_rules! amm {
                 }
             }
 
-            fn tokens(&self) -> Vec<Felt> {
-                match self {
-                    $(AMM::$pool_type(pool) => pool.tokens(),)+
-                }
-            }
 
             fn calculate_price(&self, base_token: Felt, quote_token: Felt) -> Result<f64, StarknetError> {
                 match self {
@@ -94,15 +104,6 @@ macro_rules! amm {
             }
 
 
-            async fn get_reserves<P>(&mut self, provider: Arc<P>) -> Result<Reserves, StarknetError>
-            where
-            P: Provider + Sync + Send
-            {
-                match self {
-
-                        $(AMM::$pool_type(pool) => pool.get_reserves(provider).await, )+
-                }
-            }
 
             // async fn populate_data<P>(&mut self, middleware: Arc<P>) -> Result<(), StarknetError>
             // where
