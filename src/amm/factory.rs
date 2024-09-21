@@ -109,7 +109,7 @@ impl Factory {
     {
         let factory_address = self.address();
         let amm_created_event_signature = self.amm_created_event_signature();
-        // let mut futures = FuturesUnordered::new();
+        let mut futures = FuturesUnordered::new();
 
         let mut aggregated_amms: Vec<AMM> = vec![];
 
@@ -128,11 +128,11 @@ impl Factory {
             // let filter = EventFilter {
             //     from_block: Some(from_block),
             //     to_block: Some(to_block),
-            //     address,
-            //     keys,
+            //     address: factory_address,
+            //     keys: self.amm_created_event_signature(),
             // };
 
-            // futures.push(async move { provider.get_logs(&filter).await });
+            futures.push(async move { provider.get_events(&filter, None, 10).await });
 
             // from_block += step;
         }

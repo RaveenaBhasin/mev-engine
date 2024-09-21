@@ -26,7 +26,6 @@ async fn main() {
         Felt::from_hex("0xad5d3ec16e143a33da68c00099116ef328a882b65607bec5b2431267934a20").unwrap(),
         Felt::from_hex("0x3610e8e1835afecdd154863369b91f55612defc17933f83f4425533c435a248")
             .unwrap(), // token1
-        // Add the correct arguments here
         18u8,
         18u8,
         Felt::ZERO,

@@ -59,6 +59,7 @@ impl AutomatedMarketMakerFactory for TenKFactory {
 
         let pools_length_parsed =
             u64::from_le_bytes(pools_length.to_bytes_le()[0..8].try_into().unwrap());
+        // println!("total no. of pools {:?}", pools_length_parsed);
         let mut all_pools = vec![];
 
         for idx in 0..pools_length_parsed {
@@ -70,6 +71,7 @@ impl AutomatedMarketMakerFactory for TenKFactory {
             )
             .await
             .unwrap()[0];
+            // println!("pool address {:?}", pool_address);
 
             let pool = get_pool_info(pool_address, provider.clone()).await.unwrap();
             all_pools.push(AMM::TenkSwapPool(pool));
