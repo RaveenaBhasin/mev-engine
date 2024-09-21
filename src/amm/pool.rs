@@ -47,14 +47,9 @@ pub trait AutomatedMarketMaker {
     where
         P: Provider + Sync + Send;
 
-    /// Populates the AMM data via batched static calls.
-    async fn populate_data<P>(
-        &mut self,
-        block_number: Option<u64>,
-        middleware: Arc<P>,
-    ) -> Result<(), StarknetError>
-    where
-        P: Provider + Sync + Send;
+    // async fn populate_data<P>(&mut self, middleware: Arc<P>) -> Result<(), StarknetError>
+    // where
+    //     P: Provider + Sync + Send;
 }
 
 macro_rules! amm {
@@ -108,14 +103,14 @@ macro_rules! amm {
                 }
             }
 
-            async fn populate_data<P>(&mut self, block_number: Option<u64>, middleware: Arc<P>) -> Result<(), StarknetError>
-            where
-                P: Provider + Send + Sync,
-            {
-                match self {
-                    $(AMM::$pool_type(pool) => pool.populate_data(block_number, middleware).await,)+
-                }
-            }
+            // async fn populate_data<P>(&mut self, middleware: Arc<P>) -> Result<(), StarknetError>
+            // where
+            //     P: Provider + Send + Sync,
+            // {
+            //     match self {
+            //         $(AMM::$pool_type(pool) => pool.populate_data(middleware).await,)+
+            //     }
+            // }
         }
 
 

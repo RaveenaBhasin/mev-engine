@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use super::get_data;
 use async_trait::async_trait;
+use num_bigint::BigUint;
 use serde::{Deserialize, Serialize};
 use starknet::{
     core::{
@@ -47,14 +48,18 @@ impl AutomatedMarketMaker for JediswapPool {
     async fn simulate_swap<P>(
         &self,
         base_token: Felt,
-        quote_token: Felt,
+        _quote_token: Felt,
         amount_in: Felt,
         provider: Arc<P>,
     ) -> Result<Felt, StarknetError>
     where
         P: Provider + Sync + Send,
     {
-        unimplemented!()
+        if self.token_a == base_token {
+            Ok(self.get_amount_out(amount_in, self.reserve_a, self.reserve_b))
+        } else {
+            Ok(self.get_amount_out(amount_in, self.reserve_b, self.reserve_a))
+        }
     }
 
     /// Locally simulates a swap in the AMM.
@@ -96,18 +101,6 @@ impl AutomatedMarketMaker for JediswapPool {
             reserve_b,
         })
     }
-
-    async fn populate_data<P>(
-        &mut self,
-        _block_number: Option<u64>,
-        provider: Arc<P>,
-    ) -> Result<(), StarknetError>
-    where
-        P: Provider + Sync + Send,
-    {
-        get_data::get_v2_pool_data_batch_request(self.pool_address, provider.clone()).await?;
-        unimplemented!();
-    }
 }
 
 impl JediswapPool {
@@ -131,5 +124,27 @@ impl JediswapPool {
             reserve_b,
             fee,
         }
+    }
+
+    fn get_amount_out(&self, amount_in: Felt, reserve_in: Felt, reserve_out: Felt) -> Felt {
+        let amount_in = BigUint::from_bytes_be(&amount_in.to_bytes_be());
+        let reserve_in = BigUint::from_bytes_be(&reserve_in.to_bytes_be());
+        let reserve_out = BigUint::from_bytes_be(&reserve_out.to_bytes_be());
+
+        if amount_in == BigUint::from(0u32)
+            || reserve_in == BigUint::from(0u32)
+            || reserve_out == BigUint::from(0u32)
+        {
+            return Felt::ZERO;
+        }
+
+        let fee = (BigUint::from(10000u32) - BigUint::from(self.fee / 10)) / BigUint::from(10u32);
+        let amount_in_with_fee = &amount_in * &fee;
+        let numerator = &amount_in_with_fee * &reserve_out;
+        let denominator = &reserve_in * BigUint::from(1000u32) + &amount_in_with_fee;
+
+        let result = &numerator / &denominator;
+
+        Felt::from_bytes_be_slice(&result.to_bytes_be())
     }
 }
