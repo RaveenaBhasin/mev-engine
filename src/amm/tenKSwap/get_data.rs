@@ -48,7 +48,7 @@ where
     // println!("Reserve result {:?}", reserves_result);
 
     let reserve_a = Felt::from_bytes_le(&reserves_result[0].to_bytes_le());
-    let reserve_b = Felt::from_bytes_le(&reserves_result[2].to_bytes_le());
+    let reserve_b = Felt::from_bytes_le(&reserves_result[1].to_bytes_le());
 
     Ok(TenkSwapPool::new(
         pool_address,

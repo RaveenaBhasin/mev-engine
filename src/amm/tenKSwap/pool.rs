@@ -20,8 +20,6 @@ use crate::{
 
 use super::get_data::get_pool_info;
 
-// use super::{pool::AutomatedMarketMaker, types::Reserves};
-
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
 pub struct TenkSwapPool {
     pub pool_address: Felt,
@@ -53,7 +51,6 @@ impl AutomatedMarketMaker for TenkSwapPool {
     async fn simulate_swap<P>(
         &self,
         base_token: Felt,
-        _quote_token: Felt,
         amount_in: Felt,
         provider: Arc<P>,
     ) -> Result<Felt, StarknetError>
@@ -61,17 +58,9 @@ impl AutomatedMarketMaker for TenkSwapPool {
         P: Provider + Sync + Send,
     {
         if self.token_a == base_token {
-            // println!(
-            //     "amount out {:?}",
-            //     self.get_amount_out(amount_in, self.reserve_a, self.reserve_b)
-            // );
-            Ok(self.get_amount_out(amount_in, self.reserve_a, self.reserve_b))
+            Ok(self.get_amount_out(amount_in, self.reserve_a, self.reserve_b, true))
         } else {
-            // println!(
-            //     "amount out {:?}",
-            //     self.get_amount_out(amount_in, self.reserve_b, self.reserve_a)
-            // );
-            Ok(self.get_amount_out(amount_in, self.reserve_b, self.reserve_a))
+            Ok(self.get_amount_out(amount_in, self.reserve_b, self.reserve_a, false))
         }
     }
 
@@ -129,14 +118,24 @@ impl TenkSwapPool {
         }
     }
 
-    pub fn get_amount_out(&self, amount_in: Felt, reserve_in: Felt, reserve_out: Felt) -> Felt {
-        let amount_in = BigUint::from_bytes_be(&amount_in.to_bytes_be());
-        let reserve_in = BigUint::from_bytes_be(&reserve_in.to_bytes_be());
-        let reserve_out = BigUint::from_bytes_be(&reserve_out.to_bytes_be());
+    pub fn get_amount_out(&self, amount_in: Felt, reserve_in: Felt, reserve_out: Felt, is_input_token_a: bool) -> Felt {
+        let in_decimals: BigUint;
+        let out_decimals: BigUint;
+        if is_input_token_a {
+            in_decimals = BigUint::from(10u32).pow(self.token_a_decimals.into());
+            out_decimals = BigUint::from(10u32).pow(self.token_b_decimals.into());
+        } else {
+            in_decimals = BigUint::from(10u32).pow(self.token_b_decimals.into());
+            out_decimals = BigUint::from(10u32).pow(self.token_a_decimals.into());
+        }
 
-        print!(
-            "Reserves in get_amount_out {:?} {:?}",
-            reserve_in, reserve_out
+        let amount_in = BigUint::from_bytes_be(&amount_in.to_bytes_be())*in_decimals.clone();
+        let reserve_in = BigUint::from_bytes_be(&reserve_in.to_bytes_be())*in_decimals.clone();
+        let reserve_out = BigUint::from_bytes_be(&reserve_out.to_bytes_be())*out_decimals.clone();
+
+        println!(
+            "Reserves in get_amount_out {:?} {:?} {:?}",
+            amount_in, reserve_in, reserve_out
         );
 
         if amount_in == BigUint::from(0u32)
@@ -146,14 +145,25 @@ impl TenkSwapPool {
             return Felt::ZERO;
         }
 
-        let fee = (BigUint::from(10000u32) - BigUint::from(self.fee / 10)) / BigUint::from(10u32);
-        let amount_in_with_fee = &amount_in * &fee;
-        let numerator = &amount_in_with_fee * &reserve_out;
-        let denominator = &reserve_in * BigUint::from(1000u32) + &amount_in_with_fee;
+        let fee = (BigUint::from(10000u32) - (BigUint::from(self.fee) / BigUint::from(10u32)))
+            / BigUint::from(10u32); 
+        let amount_in_with_fee = amount_in * fee.clone();
+        let numerator = amount_in_with_fee.clone() * reserve_out;
+        let denominator = reserve_in * BigUint::from(1000u32) + amount_in_with_fee.clone();
 
-        let result = &numerator / &denominator;
+        let result = numerator.clone() / denominator.clone();
 
+        // println!("Fee {:?} {:?}", self.fee, fee);
+        // println!("Amount in with fee: {:?}", amount_in_with_fee);
+        // println!("Input decimals: {:?}", in_decimals);
+        // println!("Output decimals: {:?}", out_decimals);
+        // println!("Numerator: {:?}", numerator);
+        // println!("Denominator: {:?}", denominator);
+        println!("Amount out: {:?}", result);
+        println!("{:?}",Felt::from_bytes_be_slice(&result.to_bytes_be()));
+      
         Felt::from_bytes_be_slice(&result.to_bytes_be())
+
     }
 
     async fn get_reserves<P>(&mut self, provider: Arc<P>) -> Result<Reserves, StarknetError>
@@ -166,17 +176,16 @@ impl TenkSwapPool {
             calldata: vec![],
         };
 
-        let result = provider
+        let result: Vec<Felt> = provider
             .call(call, BlockId::Tag(BlockTag::Latest))
             .await
             .unwrap();
 
         let reserve_a = Felt::from_bytes_le(&result[0].to_bytes_le());
-        let reserve_b = Felt::from_bytes_le(&result[2].to_bytes_le());
+        let reserve_b = Felt::from_bytes_le(&result[1].to_bytes_le());
 
         self.reserve_a = reserve_a.clone();
         self.reserve_b = reserve_b.clone();
-        // let block_timestamp_last = BigUint::from_bytes_le(&result[2].to_bytes_le());
         Ok(Reserves {
             reserve_a,
             reserve_b,

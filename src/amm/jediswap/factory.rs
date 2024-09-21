@@ -5,7 +5,7 @@ use serde::{Deserialize, Serialize};
 use starknet::{
     core::{
         types::{BlockId, BlockTag, Felt, FunctionCall, StarknetError},
-        utils::get_selector_from_name,
+
     },
     providers::Provider,
 };
@@ -20,10 +20,8 @@ use crate::{
 
 use super::{
     get_data::{get_all_pools, get_pool_info},
-    pool::JediswapPool,
 };
 
-// use super::{pool::AutomatedMarketMaker, types::Reserves};
 
 #[derive(Serialize, Deserialize, Clone, Debug)]
 pub struct JediswapFactory {

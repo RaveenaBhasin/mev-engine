@@ -68,7 +68,6 @@ impl AutomatedMarketMaker for JediswapPool {
     async fn simulate_swap<P>(
         &self,
         base_token: Felt,
-        _quote_token: Felt,
         amount_in: Felt,
         provider: Arc<P>,
     ) -> Result<Felt, StarknetError>
@@ -119,6 +118,20 @@ impl JediswapPool {
         }
     }
 
+    pub async fn new_from_address<P>(
+        pool_address: Felt,
+        fee: u32,
+        provider: Arc<P>,
+    ) -> Result<Self, AMMError>
+    where
+        P: Provider + Send + Sync,
+    {
+        let mut pool = get_pool_info(pool_address, provider).await.unwrap();
+        pool.fee = fee;
+
+        Ok(pool)
+    }
+
     fn get_amount_out(&self, amount_in: Felt, reserve_in: Felt, reserve_out: Felt) -> Felt {
         let amount_in = BigUint::from_bytes_be(&amount_in.to_bytes_be());
         let reserve_in = BigUint::from_bytes_be(&reserve_in.to_bytes_be());
@@ -137,6 +150,10 @@ impl JediswapPool {
         let denominator = &reserve_in * BigUint::from(1000u32) + &amount_in_with_fee;
 
         let result = &numerator / &denominator;
+        println!(
+            "Reserves 0, Reserves 1, amount out {:?} {:?} {:?}",
+            reserve_in, reserve_out, result
+        );
 
         Felt::from_bytes_be_slice(&result.to_bytes_be())
     }
@@ -164,19 +181,5 @@ impl JediswapPool {
             reserve_a,
             reserve_b,
         })
-    }
-
-    pub async fn new_from_address<P>(
-        pool_address: Felt,
-        fee: u32,
-        provider: Arc<P>,
-    ) -> Result<Self, AMMError>
-    where
-        P: Provider + Send + Sync,
-    {
-        let mut pool = get_pool_info(pool_address, provider).await.unwrap();
-        pool.fee = fee;
-
-        Ok(pool)
     }
 }
