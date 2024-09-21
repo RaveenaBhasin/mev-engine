@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use starknet::{
     core::{
-        types::{Felt, FunctionCall, StarknetError},
+        types::{BlockId, BlockTag, Felt, FunctionCall, StarknetError},
         utils::get_selector_from_name,
     },
     providers::Provider,
@@ -15,7 +15,10 @@ use crate::{
     errors::AMMError,
 };
 
-use super::get_data::{get_all_pools, get_pool_info};
+use super::{
+    get_data::{get_all_pools, get_v2_pool_data_batch_request},
+    pool::JediswapPool,
+};
 
 // use super::{pool::AutomatedMarketMaker, types::Reserves};
 
@@ -43,7 +46,9 @@ impl AutomatedMarketMakerFactory for JediswapFactory {
                 first_val = false;
                 continue;
             }
-            let pool = get_pool_info(pool_address, provider.clone()).await.unwrap();
+            let pool = get_v2_pool_data_batch_request(pool_address, provider.clone())
+                .await
+                .unwrap();
 
             tokio::time::sleep(Duration::from_millis(200)).await;
             all_pools.push(AMM::JediswapPool(pool));

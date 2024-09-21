@@ -1,4 +1,5 @@
 pub mod factory;
 pub mod jediswap;
-mod pool;
+pub mod pool;
+pub mod tenKSwap;
 pub mod types;

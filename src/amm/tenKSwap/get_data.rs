@@ -5,17 +5,27 @@ use starknet::{
     providers::Provider,
 };
 
-use crate::{amm::factory::AutomatedMarketMakerFactory, utils::call_contract};
+use super::{factory::TenKFactory, pool::TenkSwapPool};
+use crate::utils::call_contract;
+use crate::{amm::pool::AMM, errors::AMMError};
 
-use super::{factory::JediswapFactory, pool::JediswapPool};
-
-pub async fn get_v2_pool_data_batch_request<P>(
-    pool_address: Felt,
+pub async fn get_all_pools<P>(
+    factory_address: Felt,
+    idx: u64,
     provider: Arc<P>,
-) -> Result<JediswapPool, StarknetError>
+) -> Result<TenkSwapPool, AMMError>
 where
     P: Provider + Send + Sync,
 {
+    let pool_address = call_contract(
+        provider.clone(),
+        factory_address,
+        "allPairs",
+        vec![Felt::from(idx)],
+    )
+    .await
+    .unwrap()[0];
+
     let token0 = call_contract(provider.clone(), pool_address, "token0", vec![])
         .await
         .unwrap();
@@ -39,11 +49,6 @@ where
     let token1_decimals_parsed =
         u8::from_le_bytes(token1_decimals.to_bytes_le()[0..1].try_into().unwrap());
 
-    print!(
-        " {:?} {:?} {:?} {:?}",
-        token_0_address, token_1_address, token0_decimals_parsed, token1_decimals_parsed
-    );
-
     let reserves_result = call_contract(provider.clone(), pool_address, "get_reserves", vec![])
         .await
         .unwrap();
@@ -51,7 +56,7 @@ where
     let reserve_a = Felt::from_bytes_le(&reserves_result[0].to_bytes_le());
     let reserve_b = Felt::from_bytes_le(&reserves_result[2].to_bytes_le());
 
-    Ok(JediswapPool::new(
+    Ok(TenkSwapPool::new(
         pool_address,
         token_0_address,
         token_1_address,
@@ -61,18 +66,4 @@ where
         reserve_b,
         0u32,
     ))
-}
-
-pub async fn get_all_pools<P>(
-    factory: &mut JediswapFactory,
-    provider: Arc<P>,
-) -> Result<Vec<Felt>, Stderr>
-where
-    P: Provider + Send + Sync,
-{
-    let all_pairs = call_contract(provider.clone(), factory.address(), "get_all_pairs", vec![])
-        .await
-        .unwrap();
-    println!("all pair addresses {:?}", all_pairs);
-    Ok(all_pairs)
 }

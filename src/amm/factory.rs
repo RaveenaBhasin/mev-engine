@@ -7,9 +7,8 @@ use starknet::{
     providers::Provider,
 };
 
+use super::{jediswap::factory::JediswapFactory, pool::AMM, tenKSwap::factory::TenKFactory};
 use crate::errors::AMMError;
-
-use super::{jediswap::factory::JediswapFactory, pool::AMM};
 
 #[async_trait]
 pub trait AutomatedMarketMakerFactory {
@@ -22,17 +21,17 @@ pub trait AutomatedMarketMakerFactory {
 }
 
 macro_rules! factory {
-    ($($pool_type:ident),+ $(,)?) => {
+    ($($factory_type:ident),+ $(,)?) => {
         #[derive(Debug, Clone, Serialize, Deserialize)]
         pub enum Factory {
-            $($pool_type($pool_type),)+
+            $($factory_type($factory_type),)+
         }
 
         #[async_trait]
         impl AutomatedMarketMakerFactory for Factory {
             fn address(&self) -> Felt{
                 match self {
-                    $(Factory::$pool_type(pool) => pool.address(),)+
+                    $(Factory::$factory_type(pool) => pool.address(),)+
                 }
             }
 
@@ -42,7 +41,7 @@ macro_rules! factory {
             P: Provider + Sync + Send
             {
                 match self {
-                        $(Factory::$pool_type(pool) => pool.fetch_all_pools(provider).await)+
+                        $(Factory::$factory_type(pool) => pool.fetch_all_pools(provider).await, )+
                 }
             }
         }
@@ -58,4 +57,4 @@ macro_rules! factory {
     };
 }
 
-factory!(JediswapFactory);
+factory!(JediswapFactory, TenKFactory);

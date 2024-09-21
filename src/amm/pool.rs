@@ -8,6 +8,7 @@ use starknet::{
 };
 
 use super::{jediswap::pool::JediswapPool, types::Reserves};
+use crate::amm::tenKSwap::pool::TenkSwapPool;
 
 #[async_trait]
 pub trait AutomatedMarketMaker {
@@ -70,7 +71,7 @@ macro_rules! amm {
 
             async fn simulate_swap<P>(&self, base_token: Felt, quote_token: Felt, amount_in: Felt, provider: Arc<P>) -> Result<Felt, StarknetError> where P: Provider + Send + Sync {
                 match self {
-                    $(AMM::$pool_type(pool) => pool.simulate_swap(base_token, quote_token, amount_in, provider).await)+
+                    $(AMM::$pool_type(pool) => pool.simulate_swap(base_token, quote_token, amount_in, provider).await,)+
                 }
             }
 
@@ -99,7 +100,7 @@ macro_rules! amm {
             {
                 match self {
 
-                        $(AMM::$pool_type(pool) => pool.get_reserves(provider).await)+
+                        $(AMM::$pool_type(pool) => pool.get_reserves(provider).await, )+
                 }
             }
 
@@ -124,4 +125,4 @@ macro_rules! amm {
     };
 }
 
-amm!(JediswapPool);
+amm!(JediswapPool, TenkSwapPool);
