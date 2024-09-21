@@ -269,7 +269,7 @@ where
         amms.to_vec(),
     );
 
-    std::fs::write(checkpoint_path, serde_json::to_string_pretty(&checkpoint)?)?;
+    std::fs::write(checkpoint_path, serde_json::to_string_pretty(&checkpoint)?).unwrap();
 
     Ok(())
 }

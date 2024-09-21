@@ -87,7 +87,5 @@ pub enum CheckpointError {
     #[error(transparent)]
     SystemTimeError(#[from] SystemTimeError),
     #[error(transparent)]
-    SerdeJsonError(#[from] serde_json::error::Error),
-    #[error(transparent)]
-    IOError(#[from] std::io::Error),
+    SerdeJsonError(#[from] serde_json::error::Error)
 }
