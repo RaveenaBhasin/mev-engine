@@ -74,8 +74,8 @@ impl AutomatedMarketMakerFactory for JediswapFactory {
         Ok(())
     }
 
-    fn amm_created_event_signature(&self) -> Felt {
-        Felt::ONE
+    fn amm_created_event_signature(&self) -> Vec<Vec<Felt>> {
+        vec![vec![Felt::ONE]]
     }
 }
 

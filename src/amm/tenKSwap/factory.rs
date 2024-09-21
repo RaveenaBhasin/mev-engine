@@ -79,8 +79,8 @@ impl AutomatedMarketMakerFactory for TenKFactory {
         Ok(all_pools)
     }
 
-    fn amm_created_event_signature(&self) -> Felt {
-        Felt::ONE
+    fn amm_created_event_signature(&self) -> Vec<Vec<Felt>> {
+        vec![vec![Felt::ONE]]
     }
 
     async fn populate_amm_data<P>(

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use futures::stream::{FuturesUnordered, StreamExt};
+use futures::stream::FuturesUnordered;
 use serde::{Deserialize, Serialize};
 use starknet::{
-    core::types::{EventFilter, Felt, StarknetError},
+    core::types::{BlockId, EventFilter, Felt},
     providers::Provider,
 };
 
@@ -20,7 +20,7 @@ pub trait AutomatedMarketMakerFactory {
     where
         P: Provider + Sync + Send;
 
-    fn amm_created_event_signature(&self) -> Felt;
+    fn amm_created_event_signature(&self) -> Vec<Vec<Felt>>;
 
     /// Populates all AMMs data via batched static calls.
     async fn populate_amm_data<P>(
@@ -58,7 +58,7 @@ macro_rules! factory {
                 }
             }
 
-            fn amm_created_event_signature(&self) -> Felt {
+            fn amm_created_event_signature(&self) -> Vec<Vec<Felt>> {
                 match self {
                     $(Factory::$factory_type(factory) => factory.amm_created_event_signature(),)+
                 }
@@ -120,19 +120,14 @@ impl Factory {
                 target_block = to_block;
             }
 
-            // let filter = EventFilter::new()
-            //     .event_signature(amm_created_event_signature)
-            //     .address(factory_address)
-            //     .from_block(from_block)
-            //     .to_block(target_block);
-            // let filter = EventFilter {
-            //     from_block: Some(from_block),
-            //     to_block: Some(to_block),
-            //     address: factory_address,
-            //     keys: self.amm_created_event_signature(),
-            // };
+            let filter = EventFilter {
+                from_block: Some(BlockId::Number(from_block)),
+                to_block: Some(BlockId::Number(to_block)),
+                address: Some(factory_address),
+                keys: Some(self.amm_created_event_signature()),
+            };
 
-            futures.push(async move { provider.get_events(&filter, None, 10).await });
+            futures.push(async move { provider.get_events(filter, None, 10).await });
 
             // from_block += step;
         }
