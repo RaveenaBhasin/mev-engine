@@ -6,10 +6,11 @@ edition = "2023_11"
 # See more keys and their definitions at https://docs.swmansion.com/scarb/docs/reference/manifest.html
 
 [dependencies]
+openzeppelin_token = "0.19.0"
 starknet = "2.8.4"
 
 [dev-dependencies]
-snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.32.0" }
+snforge_std = { git = "https://github.com/foundry-rs/starknet-foundry", tag = "v0.34.0" }
 assert_macros = "2.8.4"
 
 [[target.starknet-contract]]
@@ -25,10 +26,10 @@ test = "snforge test"
 # fuzzer_runs = 1234                                         # Number of runs of the random fuzzer
 # fuzzer_seed = 1111                                         # Seed for the random fuzzer
 
-# [[tool.snforge.fork]]                                      # Used for fork testing
-# name = "SOME_NAME"                                         # Fork name
-# url = "http://your.rpc.url"                                # Url of the RPC provider
-# block_id.tag = "latest"                                    # Block to fork from (block tag)
+[[tool.snforge.fork]]                                      # Used for fork testing
+name = "MAINNET_FORK"
+url = "https://starknet-mainnet.public.blastapi.io/rpc/v0_7"
+block_id.tag = "latest"                                    # Block to fork from (block tag)
 
 # [[tool.snforge.fork]]
 # name = "SOME_SECOND_NAME"

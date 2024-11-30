@@ -7,7 +7,9 @@ pub trait IFlashloanReceiver<TContractState> {
         sender: ContractAddress,
         asset: ContractAddress,
         amount: u256,
-        data: Span<felt252>
+        data: Span<felt252>,
     );
+
+    fn start_flashloan(ref self: TContractState, amount: u256);
 }
 
