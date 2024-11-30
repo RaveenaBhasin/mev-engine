@@ -5,7 +5,6 @@ use starknet::{ContractAddress, contract_address_const};
 use crate::IFlashLoan::{IFlashloanReceiverDispatcher, IFlashloanReceiverDispatcherTrait};
 
 #[test]
-// #[fork(url: "https://starknet-mainnet.public.blastapi.io/rpc/v0_7", block_number: 77864)]
 #[fork("MAINNET_FORK")]
 fn test_flashloan() {
     let class = declare("FlashLoanContract").unwrap().contract_class();
@@ -22,5 +21,5 @@ fn test_flashloan() {
 
     let flash_loan = IFlashloanReceiverDispatcher { contract_address: addr };
     let amount = 1000;
-    flash_loan.start_flashloan(1000);
+    flash_loan.start_flashloan(amount);
 }
