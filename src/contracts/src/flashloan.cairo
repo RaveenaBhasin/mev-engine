@@ -1,9 +1,11 @@
 #[starknet::contract]
 pub mod FlashLoanContract {
     use starknet::ContractAddress;
+    // use openzeppelin::token::;
+    use crate::IFlashloan::IFlashloanReceiver;
     use starknet::get_caller_address;
-    use contracts::{IVesu};
-    use contracts::IVesu::{IVesuDispatcherTrait, IVesuDispatcher};
+    use crate::{IVesu};
+    use crate::IVesu::{IVesuDispatcherTrait, IVesuDispatcher};
 
     #[storage]
     pub struct Storage {

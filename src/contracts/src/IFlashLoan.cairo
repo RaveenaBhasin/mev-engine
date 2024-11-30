@@ -1,5 +1,5 @@
 #[starknet::interface]
-trait IFlashloanReceiver<TContractState> {
+pub trait IFlashloanReceiver<TContractState> {
     fn on_flash_loan(
         ref self: TContractState,
         sender: ContractAddress,
