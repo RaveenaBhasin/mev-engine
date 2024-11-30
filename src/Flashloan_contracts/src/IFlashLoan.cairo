@@ -1,3 +1,5 @@
+use starknet::ContractAddress;
+
 #[starknet::interface]
 pub trait IFlashloanReceiver<TContractState> {
     fn on_flash_loan(
