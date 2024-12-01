@@ -129,7 +129,7 @@ impl Factory {
 
             futures.push(async move { provider.get_events(filter, None, 10).await });
 
-            // from_block += step;
+            from_block += step;
         }
 
         // while let Some(result) = futures.next().await {

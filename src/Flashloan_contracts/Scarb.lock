@@ -2,6 +2,11 @@
 version = 1
 
 [[package]]
+name = "ekubo"
+version = "0.1.0"
+source = "git+https://github.com/ekuboprotocol/abis#edb6de8c9baf515f1053bbab3d86825d54a63bc3"
+
+[[package]]
 name = "openzeppelin_access"
 version = "0.19.0"
 source = "registry+https://scarbs.xyz/"
@@ -49,6 +54,7 @@ checksum = "sha256:0e0e6f6b20b3c4075b92941a2c124430a59f1c207f8fbdfd56ce9239e6d66
 name = "snforge_sample"
 version = "0.1.0"
 dependencies = [
+ "ekubo",
  "openzeppelin_token",
  "snforge_std",
 ]

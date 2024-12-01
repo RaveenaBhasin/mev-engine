@@ -24,5 +24,12 @@ fn test_flashloan() {
     let flash_loan = IFlashloanReceiverDispatcher { contract_address: addr };
     let amount = 1000;
 
-    flash_loan.start_flashloan(amount);
+    let swap_route = array![
+        Swap {
+            dex: Dex::Ekubo,
+            from_token: contract_address_const::<0x1>(),
+            to_token: contract_address_const::<0x1>(),
+        },
+    ];
+    flash_loan.start_flashloan(amount, swap_route);
 }
