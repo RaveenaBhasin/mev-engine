@@ -28,10 +28,10 @@ test = "snforge test"
 # fuzzer_runs = 1234                                         # Number of runs of the random fuzzer
 # fuzzer_seed = 1111                                         # Seed for the random fuzzer
 
-[[tool.snforge.fork]]                                      # Used for fork testing
+[[tool.snforge.fork]] # Used for fork testing
 name = "MAINNET_FORK"
 url = "https://starknet-mainnet.public.blastapi.io/rpc/v0_7"
-block_id.tag = "latest"                                    # Block to fork from (block tag)
+block_id.tag = "latest"                                      # Block to fork from (block tag)
 
 # [[tool.snforge.fork]]
 # name = "SOME_SECOND_NAME"
