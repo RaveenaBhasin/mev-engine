@@ -23,7 +23,7 @@ async fn main() {
     let provider = create_rpc_provider(rpc_url).unwrap();
 
     let pool = JediswapPool::new_from_address(
-        Felt::from_hex("0x7e2a13b40fc1119ec55e0bcf9428eedaa581ab3c924561ad4e955f95da63138")
+        Felt::from_hex("0x04d0390b777b424e43839cd1e744799f3de6c176c7e32c1812a41dbd9c19db6a")
             .unwrap(),
         0u32,
         provider.clone(),
@@ -32,7 +32,8 @@ async fn main() {
     .unwrap();
 
     pool.simulate_swap(
-        Felt::from_hex("0xda114221cb83fa859dbdb4c44beeaa0bb37c7537ad5ae66fe5e0efd20e6eb3").unwrap(),
+        Felt::from_hex("0x53c91253bc9682c04929ca02ed00b3e423f6710d2ee7e0d5ebb06f3ecf368a8")
+            .unwrap(),
         Felt::from(100u32),
         provider,
     )

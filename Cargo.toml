@@ -19,6 +19,7 @@ thiserror = "1.0.63"
 serde_json = "1.0.128"
 futures = "0.3.30"
 dotenv = "0.15.0"
+rust_decimal = "1.36.0"
 
 [lib]
 name = "mev_engine"
