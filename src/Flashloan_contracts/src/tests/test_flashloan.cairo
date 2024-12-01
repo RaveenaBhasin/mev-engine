@@ -2,7 +2,9 @@ use snforge_std::ContractClassTrait;
 use snforge_std::DeclareResultTrait;
 use snforge_std::{declare};
 use starknet::{ContractAddress, contract_address_const};
-use crate::IFlashLoan::{IFlashloanReceiverDispatcher, IFlashloanReceiverDispatcherTrait};
+use crate::interfaces::IFlashLoan::{
+    IFlashloanReceiverDispatcher, IFlashloanReceiverDispatcherTrait, Swap, Dex,
+};
 
 #[test]
 #[fork("MAINNET_FORK")]
@@ -21,5 +23,6 @@ fn test_flashloan() {
 
     let flash_loan = IFlashloanReceiverDispatcher { contract_address: addr };
     let amount = 1000;
+
     flash_loan.start_flashloan(amount);
 }

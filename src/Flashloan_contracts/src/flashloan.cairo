@@ -2,11 +2,16 @@
 pub mod FlashLoanContract {
     use starknet::ContractAddress;
     use openzeppelin_token::erc20::interface::{IERC20Dispatcher, IERC20DispatcherTrait};
-    use crate::IFlashLoan::IFlashloanReceiver;
+    use crate::interfaces::IFlashLoan::{ IFlashloanReceiver, Dex, Swap};
     use starknet::get_caller_address;
     use starknet::get_contract_address;
     // use crate::{IVesu};
-    use crate::IVesu::{IVesuDispatcherTrait, IVesuDispatcher};
+    use crate::interfaces::IVesu::{IVesuDispatcherTrait, IVesuDispatcher};
+    use starknet::storage::Map;
+ 
+  
+
+
 
     #[storage]
     pub struct Storage {
@@ -14,6 +19,7 @@ pub mod FlashLoanContract {
         pub vesu_dispatcher: IVesuDispatcher,
         pub token: ContractAddress,
         pub contract_balance: u256,
+        pub routers: Map<Dex, ContractAddress>
     }
 
     #[constructor]
@@ -44,14 +50,14 @@ pub mod FlashLoanContract {
             println!("Completed callback");
         }
 
-        fn start_flashloan(ref self: ContractState, amount: u256) {
+        fn start_flashloan(ref self: ContractState, amount: u256, token_route: Swap[]) {
             let vesu = self.vesu_dispatcher.read();
             let token_dispatcher = IERC20Dispatcher { contract_address: self.token.read() };
             token_dispatcher.approve(vesu.contract_address, amount);
             let token = self.token.read();
             let my_address = get_contract_address();
             println!("my address {:?}", my_address);
-            vesu.flash_loan(my_address, token, amount, false, array![].span());
+            vesu.flash_loan(my_address, token, amount, false);
         }
     }
 }
