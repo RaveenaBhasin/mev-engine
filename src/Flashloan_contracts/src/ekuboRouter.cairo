@@ -23,7 +23,7 @@ pub struct Swap {
 }
 
 #[starknet::interface]
-pub trait IRouterLite<TContractState> {
+pub trait IEkuboRouter<TContractState> {
     // Does a single swap against a single node using tokens held by this contract, and receives the
     // output to this contract
     fn swap(ref self: TContractState, node: RouteNode, token_amount: TokenAmount) -> Delta;
@@ -39,17 +39,17 @@ pub trait IRouterLite<TContractState> {
 }
 
 #[starknet::contract]
-pub mod RouterLite {
+pub mod EkuboRouter {
     use starknet::storage::{StoragePointerWriteAccess, StoragePointerReadAccess};
     use core::array::{Array, ArrayTrait};
     use core::option::{OptionTrait};
     use ekubo::components::clear::{ClearImpl};
-    use ekubo::components::shared_locker::{
-        consume_callback_data, handle_delta, call_core_with_callback,
-    };
+    use ekubo::components::shared_locker::{consume_callback_data, call_core_with_callback};
     use ekubo::interfaces::core::{ICoreDispatcher, ICoreDispatcherTrait, ILocker, SwapParameters};
-    use starknet::{get_contract_address};
-    use super::{Delta, IRouterLite, RouteNode, TokenAmount, Swap};
+    use starknet::{ContractAddress};
+    use super::{Delta, IEkuboRouter, RouteNode, TokenAmount, Swap};
+    use ekubo::types::i129::{i129};
+    use core::num::traits::Zero;
 
     #[abi(embed_v0)]
     impl Clear = ekubo::components::clear::ClearImpl<ContractState>;
@@ -57,11 +57,13 @@ pub mod RouterLite {
     #[storage]
     struct Storage {
         core: ICoreDispatcher,
+        owner: ContractAddress,
     }
 
     #[constructor]
-    fn constructor(ref self: ContractState, core: ICoreDispatcher) {
+    fn constructor(ref self: ContractState, core: ICoreDispatcher, _owner: ContractAddress) {
         self.core.write(core);
+        self.owner.write(_owner);
     }
 
     #[abi(embed_v0)]
@@ -70,16 +72,16 @@ pub mod RouterLite {
             let core = self.core.read();
 
             let mut swaps = consume_callback_data::<Array<Swap>>(core, data);
-            let mut outputs: Array<Array<Delta>> = ArrayTrait::new();
+            let mut total_profit: i129 = Zero::zero();
+            let mut token: ContractAddress = Zero::zero();
+            let recipient: ContractAddress = self.owner.read();
 
             while let Option::Some(swap) = swaps.pop_front() {
                 let mut route = swap.route;
                 let mut token_amount = swap.token_amount;
+                token = swap.token_amount.token;
 
-                let mut deltas: Array<Delta> = ArrayTrait::new();
-                // we track this to know how much to pay in the case of exact input and how much to
-                // pull in the case of exact output
-                let mut first_swap_amount: Option<TokenAmount> = Option::None;
+                let loaned_amount = swap.token_amount;
 
                 while let Option::Some(node) = route.pop_front() {
                     let is_token1 = token_amount.token == node.pool_key.token1;
@@ -95,25 +97,6 @@ pub mod RouterLite {
                             },
                         );
 
-                    deltas.append(delta);
-
-                    if first_swap_amount.is_none() {
-                        first_swap_amount =
-                            if is_token1 {
-                                Option::Some(
-                                    TokenAmount {
-                                        token: node.pool_key.token1, amount: delta.amount1,
-                                    },
-                                )
-                            } else {
-                                Option::Some(
-                                    TokenAmount {
-                                        token: node.pool_key.token0, amount: delta.amount0,
-                                    },
-                                )
-                            }
-                    }
-
                     token_amount =
                         if (is_token1) {
                             TokenAmount { amount: -delta.amount0, token: node.pool_key.token0 }
@@ -122,26 +105,26 @@ pub mod RouterLite {
                         };
                 };
 
-                let recipient = get_contract_address();
-
-                outputs.append(deltas);
-
-                let first = first_swap_amount.unwrap();
-                handle_delta(core, token_amount.token, -token_amount.amount, recipient);
-                handle_delta(core, first.token, first.amount, recipient);
+                assert(token_amount.token == loaned_amount.token, 'the same token');
+                total_profit += token_amount.amount - loaned_amount.amount;
             };
 
+            // The most important check we have
+            assert(total_profit > Zero::zero(), 'unprofitable swap');
+
+            // Withdraw profits
+            core.withdraw(token, recipient, total_profit.try_into().unwrap());
+
             let mut serialized: Array<felt252> = array![];
-
+            let mut outputs: Array<Array<Delta>> = ArrayTrait::new();
             Serde::serialize(@outputs, ref serialized);
-
             serialized.span()
         }
     }
 
 
     #[abi(embed_v0)]
-    impl RouterLiteImpl of IRouterLite<ContractState> {
+    impl EkuboRouterImpl of IEkuboRouter<ContractState> {
         fn swap(ref self: ContractState, node: RouteNode, token_amount: TokenAmount) -> Delta {
             let mut deltas: Array<Delta> = self.multihop_swap(array![node], token_amount);
             deltas.pop_front().unwrap()

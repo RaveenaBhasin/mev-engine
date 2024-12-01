@@ -5,6 +5,8 @@ pub mod FlashLoanContract {
     use crate::interfaces::IFlashLoan::{IFlashloanReceiver, Dex, Swap};
     use starknet::get_caller_address;
     use starknet::get_contract_address;
+    use crate::ekuboRouter::{IEkuboRouterDispatcher, IEkuboRouterDispatcherTrait};
+
     // use crate::{IVesu};
     use crate::interfaces::IVesu::{IVesuDispatcherTrait, IVesuDispatcher};
     use starknet::storage::Map;
@@ -17,15 +19,22 @@ pub mod FlashLoanContract {
         pub token: ContractAddress,
         pub contract_balance: u256,
         pub routers: Map<Dex, ContractAddress>,
+        pub ekubo_router: IEkuboRouterDispatcher,
     }
 
     #[constructor]
-    fn constructor(ref self: ContractState, vesu: ContractAddress, token: ContractAddress) {
+    fn constructor(
+        ref self: ContractState,
+        vesu: ContractAddress,
+        token: ContractAddress,
+        ekubo_address: ContractAddress,
+    ) {
         let caller = get_caller_address();
         self.owner.write(caller);
         let vesu_dispatcher = IVesuDispatcher { contract_address: vesu };
         self.vesu_dispatcher.write(vesu_dispatcher);
         self.token.write(token);
+        self.ekubo_router.write(IEkuboRouterDispatcher { contract_address: ekubo_address });
     }
 
     #[abi(embed_v0)]
