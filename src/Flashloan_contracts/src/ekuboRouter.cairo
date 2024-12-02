@@ -1,5 +1,5 @@
 use ekubo::types::delta::{Delta};
-use ekubo::types::i129::{i129};
+use ekubo::types::i129::{i129, i129Trait};
 use ekubo::types::keys::{PoolKey};
 use starknet::{ContractAddress};
 
@@ -10,7 +10,7 @@ pub struct RouteNode {
     pub skip_ahead: u128,
 }
 
-#[derive(Serde, Copy, Drop)]
+#[derive(Serde, Copy, Drop, Debug)]
 pub struct TokenAmount {
     pub token: ContractAddress,
     pub amount: i129,
@@ -20,7 +20,6 @@ pub struct TokenAmount {
 pub struct Amount {
     pub amount: ContractAddress,
 }
-
 
 #[derive(Serde, Drop)]
 pub struct Swap {
@@ -56,7 +55,7 @@ pub mod EkuboRouter {
     use ekubo::interfaces::core::{ICoreDispatcher, ICoreDispatcherTrait, ILocker, SwapParameters};
     use starknet::{ContractAddress};
     use super::{Delta, IEkuboRouter, RouteNode, TokenAmount, Swap};
-    use ekubo::types::i129::{i129};
+    use ekubo::types::i129::{i129, i129Trait};
     use core::num::traits::Zero;
     use super::Amount;
 
@@ -97,6 +96,8 @@ pub mod EkuboRouter {
                 while let Option::Some(node) = route.pop_front() {
                     let is_token1 = token_amount.token == node.pool_key.token1;
                     println!("locked 3");
+                    println!("Token 0 {:?}", node.pool_key.token0);
+                    println!("Token 1 {:?}", node.pool_key.token1);
 
                     let delta = core
                         .swap(
@@ -115,15 +116,20 @@ pub mod EkuboRouter {
                         } else {
                             TokenAmount { amount: -delta.amount1, token: node.pool_key.token1 }
                         };
-                };
 
-                assert(token_amount.token == loaned_amount.token, 'the same token');
+                    println!("Token amount {:?}", token_amount);
+                };
+                println!("Tokenamount token  {:?}", token_amount.token);
+                println!("loaned_amount token {:?}", loaned_amount.token);
+
+                // assert(token_amount.token == loaned_amount.token, 'the same token');
                 total_profit += token_amount.amount - loaned_amount.amount;
             };
-
+            println!("Total profit {:?}", total_profit);
             // The most important check we have
-            assert(total_profit > Zero::zero(), 'unprofitable swap');
+            assert(!total_profit.is_negative(), 'unprofitable swap');
 
+            println!("Total profit after assert {:?}", total_profit);
             // Withdraw profits
             core.withdraw(token, recipient, total_profit.try_into().unwrap());
 

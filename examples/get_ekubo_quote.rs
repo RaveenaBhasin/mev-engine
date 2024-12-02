@@ -1,8 +1,9 @@
-use std::sync::Arc;
-
 use dotenv::dotenv;
+use num_bigint::BigUint;
+use num_traits::Num;
 use reqwest::{self, Url};
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
+use serde_json;
 use starknet::{
     accounts::{Account, ExecutionEncoding, SingleOwnerAccount},
     contract::ContractFactory,
@@ -21,23 +22,16 @@ use starknet_core::{
         BlockId, BlockTag,
     },
 };
-// #[derive(Debug, Deserialize, Clone)]
-// pub struct Route {
-//     pool_key: PoolKey,
-//     sqrt_ratio_limit: Felt,
-//     skip_ahead: u64,
-// }
-//
-// #[derive(Debug, Deserialize, Clone)]
-// pub struct Split {
-//     amount: Felt,
-//     specifiedAmount: Felt,
-//     route: Vec<Route>,
-// }
+use std::fs::File;
+use std::io::BufReader;
+use std::sync::Arc;
 
-#[derive(Debug, PartialEq, Eq, Deserialize, Clone, Encode, Decode)]
-pub struct Amount {
-    pub amount: Felt,
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "SCREAMING_SNAKE_CASE")]
+struct Tokens {
+    eth: String,
+    usdc: String,
+    wbtc: String,
 }
 
 //-------------------------------------------------
@@ -47,7 +41,7 @@ pub struct Amount {
 //-------------------------------------------------
 //-------------------------------------------------
 
-#[derive(Debug, Eq, PartialEq, Encode, Decode)]
+#[derive(Debug, Clone, Eq, PartialEq, Encode, Decode)]
 pub struct RouteNode {
     pub pool_key: PoolKey,
     pub sqrt_ratio_limit: U256,
@@ -60,7 +54,7 @@ pub struct i129 {
     pub sign: bool,
 }
 
-#[derive(Debug, PartialEq, Eq, Encode, Decode)]
+#[derive(Debug, Clone, PartialEq, Eq, Encode, Decode)]
 pub struct TokenAmount {
     pub token: Felt,
     pub amount: i129,
@@ -68,7 +62,7 @@ pub struct TokenAmount {
 
 pub type SwapArray = Vec<Swap>;
 
-#[derive(Debug, Eq, PartialEq, Encode, Decode)]
+#[derive(Debug, Clone, Eq, PartialEq, Encode, Decode)]
 pub struct Swap {
     pub route: Vec<RouteNode>,
     pub token_amount: TokenAmount,
@@ -121,7 +115,7 @@ pub struct QuoteResponseApi {
 }
 
 async fn get_ekubo_quote(
-    amount: u64,
+    amount: String,
     token_from: &str,
     token_to: &str,
     max_splits: u64,
@@ -139,10 +133,7 @@ async fn get_ekubo_quote(
         .json::<QuoteResponseApi>()
         .await?;
 
-    println!("get ekubo quote 1 {:?}", response);
-    // let response = response?.json::<QuoteResponse>().await?;
-
-    println!("get ekubo quote 2 {:?}", response);
+    print_quote(response.clone());
 
     Ok(response)
 }
@@ -155,7 +146,7 @@ fn create_rpc_provider(
     Ok(Arc::new(provider))
 }
 
-fn convert_quote_to_swaps(quote: QuoteResponseApi) -> Vec<Swap> {
+fn convert_quote_to_swaps(quote: QuoteResponseApi, token: Felt) -> Vec<Swap> {
     quote
         .splits
         .into_iter()
@@ -180,27 +171,21 @@ fn convert_quote_to_swaps(quote: QuoteResponseApi) -> Vec<Swap> {
                     RouteNode {
                         pool_key,
                         sqrt_ratio_limit: U256::from(Felt::from_hex(&r.sqrt_ratio_limit).unwrap())
-                            + U256::from(20454487474956806466920111957593445u128),
+                            + U256::from(1000000000000000000000000000u128),
                         skip_ahead: r.skip_ahead.into(),
                     }
                 })
                 .collect();
 
-            // let amount = split.specifiedAmount.parse::<i128>().unwrap_or_default();
-            let amount = split.specified_amount;
+            let amount = split.specified_amount.parse::<u128>().unwrap();
 
-            let token = if let Some(first_route) = split.route.first() {
-                Felt::from_hex(&first_route.pool_key.token0).unwrap()
-            } else {
-                Felt::ZERO
-            };
             Swap {
                 route: routes,
                 token_amount: TokenAmount {
                     token,
                     amount: i129 {
-                        mag: 10000000000000,
-                        sign: true,
+                        mag: amount,
+                        sign: false,
                     },
                 },
             }
@@ -285,31 +270,63 @@ where
     }
 
     deployed_address
-
-    // Felt::from_hex("0x04908e210088083feec6d3dee87ca9e370161b838682b58fde90f53332d8ebd6").unwrap()
 }
 
-async fn execute_multihop_swap(
-    provider: Arc<JsonRpcClient<HttpTransport>>,
-    quote: QuoteResponseApi,
-) {
-    let address = deploy_contract(provider.clone()).await;
+fn print_quote(quote: QuoteResponseApi) {
+    println!("Total: {}", quote.total);
+    for (i, split) in quote.splits.iter().enumerate() {
+        println!("Split {}:", i + 1);
+        println!("  Amount: {}", split.amount);
+        println!("  Specified Amount: {}", split.specified_amount);
+        for (j, route) in split.route.iter().enumerate() {
+            println!("  Route {}:", j + 1);
+            println!("    Pool Key:");
+            println!("      Token0: {}", route.pool_key.token0);
+            println!("      Token1: {}", route.pool_key.token1);
+            println!("      Fee: {}", route.pool_key.fee);
+            println!("      Tick Spacing: {}", route.pool_key.tick_spacing);
+            println!("      Extension: {}", route.pool_key.extension);
+            println!("    Sqrt Ratio Limit: {}", route.sqrt_ratio_limit);
+            println!("    Skip Ahead: {}", route.skip_ahead);
+        }
+    }
+}
 
-    let swaps = convert_quote_to_swaps(quote);
-    println!("Swaps {:?}", swaps);
+#[tokio::main]
+async fn main() {
+    dotenv().ok();
+    let rpc_url = "http://0.0.0.0:5050";
+    let provider = create_rpc_provider(rpc_url).unwrap();
+    let eth_usdc_response: QuoteResponseApi =
+        get_ekubo_quote("1000000000000000000".to_string(), "ETH", "USDC", 1)
+            .await
+            .unwrap();
+
+    let usdc_btc_response: QuoteResponseApi =
+        get_ekubo_quote(eth_usdc_response.clone().total, "USDC", "WBTC", 1)
+            .await
+            .unwrap();
+
+    let wbtc_eth_response = get_ekubo_quote(usdc_btc_response.clone().total, "WBTC", "ETH", 1)
+        .await
+        .unwrap();
+
+    let root_path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
+    let tokens: Tokens =
+        serde_json::from_reader(std::fs::File::open(format!("{}/tokens.json", root_path)).unwrap())
+            .unwrap();
+    let swaps = vec![
+        convert_quote_to_swaps(eth_usdc_response, Felt::from_hex(&tokens.eth).unwrap()),
+        convert_quote_to_swaps(usdc_btc_response, Felt::from_hex(&tokens.usdc).unwrap()),
+        convert_quote_to_swaps(wbtc_eth_response, Felt::from_hex(&tokens.wbtc).unwrap()),
+    ]
+    .concat();
+
+    println!("Swap {:?}", swaps);
+
+    let address = deploy_contract(provider.clone()).await;
     let mut serialized = vec![];
-    // for swap in &swaps {
-    //     let mut swap_serialized = vec![];
-    //     swap.encode(&mut swap_serialized).unwrap();
-    //     let decoded = Swap::decode(&swap_serialized).unwrap();
-    //     assert!(decoded == *swap, "incorrectly serialized");
-    //     serialized.push(swap_serialized);
-    // }
     swaps.encode(&mut serialized).unwrap();
-    let swaps_decoded = SwapArray::decode(&serialized).unwrap();
-    assert!(swaps_decoded == swaps, "incorrectly decoded");
-    println!("Encoded swaps {:?}", serialized);
-    println!("decoded swaps {:?}", swaps_decoded);
 
     let swap_call = provider
         .clone()
@@ -324,67 +341,4 @@ async fn execute_multihop_swap(
         .await
         .expect("failed to call contract");
     println!("Result {:?}", swap_call);
-
-    let token = "0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691";
-    let amt = Amount {
-        amount: Felt::from_hex(token).unwrap(),
-        // amount: felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691"),
-    };
-
-    // println!("Amount {:?}", Felt::from_hex(token).unwrap());
-    // println!(
-    //     "Amount felt! {:?}",
-    //     felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691")
-    // );
-
-    let mut amount_calldata = vec![];
-    amt.encode(&mut amount_calldata).unwrap();
-    println!("Amount calldata {:?}", amount_calldata);
-
-    let owner_call = provider
-        .clone()
-        .call(
-            FunctionCall {
-                contract_address: address,
-                entry_point_selector: selector!("get_owner"),
-                calldata: amount_calldata,
-            },
-            BlockId::Tag(BlockTag::Latest),
-        )
-        .await
-        .expect("failed to call contract");
-    print!("{:?} ", owner_call);
-}
-
-#[tokio::main]
-async fn main() {
-    dotenv().ok();
-    let rpc_url = "http://0.0.0.0:5050";
-    let provider = create_rpc_provider(rpc_url).unwrap();
-    let get_ekubo_quote = get_ekubo_quote(10000000000, "ETH", "USDC", 10).await;
-    match get_ekubo_quote {
-        Ok(quote) => {
-            println!("Total: {}", quote.total);
-            for (i, split) in quote.splits.iter().enumerate() {
-                println!("Split {}:", i + 1);
-                println!("  Amount: {}", split.amount);
-                println!("  Specified Amount: {}", split.specified_amount);
-                for (j, route) in split.route.iter().enumerate() {
-                    println!("  Route {}:", j + 1);
-                    println!("    Pool Key:");
-                    println!("      Token0: {}", route.pool_key.token0);
-                    println!("      Token1: {}", route.pool_key.token1);
-                    println!("      Fee: {}", route.pool_key.fee);
-                    println!("      Tick Spacing: {}", route.pool_key.tick_spacing);
-                    println!("      Extension: {}", route.pool_key.extension);
-                    println!("    Sqrt Ratio Limit: {}", route.sqrt_ratio_limit);
-                    println!("    Skip Ahead: {}", route.skip_ahead);
-                }
-            }
-
-            let encoded_swaps = execute_multihop_swap(provider, quote).await;
-            // println!("Encoded swaps {:?}", encoded_swaps);
-        }
-        Err(e) => println!("Error fetching Ekubo quote: {}", e),
-    }
 }
