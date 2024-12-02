@@ -77,27 +77,34 @@ pub mod EkuboRouter {
     #[abi(embed_v0)]
     impl LockerImpl of ILocker<ContractState> {
         fn locked(ref self: ContractState, id: u32, data: Span<felt252>) -> Span<felt252> {
-            println!("locked 1");
             let core = self.core.read();
 
             let mut swaps = consume_callback_data::<Array<Swap>>(core, data);
+            println!("Number of swaps to process: {:?}", swaps.len());
+
             let mut total_profit: i129 = Zero::zero();
             let mut token: ContractAddress = Zero::zero();
             let recipient: ContractAddress = self.owner.read();
 
-            println!("locked 2");
             while let Option::Some(swap) = swaps.pop_front() {
                 let mut route = swap.route;
                 let mut token_amount = swap.token_amount;
+                println!("Initial token: {:?}", token_amount.token);
+                println!("Initial amount: {:?}", token_amount.amount);
+
                 token = swap.token_amount.token;
 
                 let loaned_amount = swap.token_amount;
 
                 while let Option::Some(node) = route.pop_front() {
+                    println!("\n--- Processing Route Node ---");
                     let is_token1 = token_amount.token == node.pool_key.token1;
-                    println!("locked 3");
-                    println!("Token 0 {:?}", node.pool_key.token0);
-                    println!("Token 1 {:?}", node.pool_key.token1);
+                    println!(
+                        "Pool tokens: {:?} / {:?}", node.pool_key.token0, node.pool_key.token1,
+                    );
+                    println!("Is token1: {:?}", is_token1);
+                    println!("Sqrt ratio limit: {:?}", node.sqrt_ratio_limit);
+                    println!("Skip ahead: {:?}", node.skip_ahead);
 
                     let delta = core
                         .swap(
@@ -109,6 +116,9 @@ pub mod EkuboRouter {
                                 skip_ahead: node.skip_ahead,
                             },
                         );
+                    println!(
+                        "Swap delta - amount0: {:?}, amount1: {:?}", delta.amount0, delta.amount1,
+                    );
 
                     token_amount =
                         if (is_token1) {
@@ -119,23 +129,26 @@ pub mod EkuboRouter {
 
                     println!("Token amount {:?}", token_amount);
                 };
-                println!("Tokenamount token  {:?}", token_amount.token);
-                println!("loaned_amount token {:?}", loaned_amount.token);
+                println!("\n=== Swap Complete ===");
+                println!("Final token: {:?}", token_amount.token);
+                println!("Initial amount: {:?}", loaned_amount.amount);
+                println!("Final amount: {:?}", token_amount.amount);
 
                 // assert(token_amount.token == loaned_amount.token, 'the same token');
                 total_profit += token_amount.amount - loaned_amount.amount;
             };
-            println!("Total profit {:?}", total_profit);
-            // The most important check we have
+            println!("\n=== Final Results ===");
+            println!("Total profit: {:?}", total_profit);
             assert(!total_profit.is_negative(), 'unprofitable swap');
 
-            println!("Total profit after assert {:?}", total_profit);
             // Withdraw profits
             core.withdraw(token, recipient, total_profit.try_into().unwrap());
+            println!("Withdrawal complete");
 
             let mut serialized: Array<felt252> = array![];
             let mut outputs: Array<Array<Delta>> = ArrayTrait::new();
             Serde::serialize(@outputs, ref serialized);
+            println!("=== Locked Function Complete ===");
             serialized.span()
         }
     }

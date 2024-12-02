@@ -25,6 +25,7 @@ use starknet_core::{
 use std::fs::File;
 use std::io::BufReader;
 use std::sync::Arc;
+use tracing::info;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -197,6 +198,7 @@ async fn deploy_contract<P>(provider: Arc<P>) -> Felt
 where
     P: Provider + Send + Sync,
 {
+    println!("Starting contract deployment");
     let root_path = std::env::var("CARGO_MANIFEST_DIR").unwrap();
     let private_key = std::env::var("PRIVATE_KEY").unwrap();
     let address = std::env::var("ADDRESS").unwrap();
@@ -209,7 +211,7 @@ where
     )
     .unwrap();
     let class_hash = contract_artifact.class_hash().unwrap();
-    println!("Class hash {:?}", class_hash);
+    // println!("Class hash {:?}", class_hash);
 
     let casm_class: CompiledClass = serde_json::from_reader(
         std::fs::File::open(format!("{}/src/Flashloan_contracts/target/dev/snforge_sample_EkuboRouter.compiled_contract_class.json", root_path)).unwrap())
@@ -242,7 +244,7 @@ where
     match result {
         Ok(res) => {}
         Err(e) => {
-            println!("Not able to declare {:?}", e);
+            println!("");
         }
     }
 
@@ -297,6 +299,7 @@ async fn main() {
     dotenv().ok();
     let rpc_url = "http://0.0.0.0:5050";
     let provider = create_rpc_provider(rpc_url).unwrap();
+    println!("Fetching quote from Ekubo API");
     let eth_usdc_response: QuoteResponseApi =
         get_ekubo_quote("1000000000000000000".to_string(), "ETH", "USDC", 1)
             .await
@@ -322,12 +325,11 @@ async fn main() {
     ]
     .concat();
 
-    println!("Swap {:?}", swaps);
-
     let address = deploy_contract(provider.clone()).await;
     let mut serialized = vec![];
     swaps.encode(&mut serialized).unwrap();
 
+    println!("---Calling multihop swap---");
     let swap_call = provider
         .clone()
         .call(
