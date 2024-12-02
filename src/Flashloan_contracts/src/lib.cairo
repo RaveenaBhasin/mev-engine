@@ -1,5 +1,4 @@
 pub mod flashloan;
-pub mod shared_locker;
 pub mod ekuboRouter;
 
 pub mod interfaces {
