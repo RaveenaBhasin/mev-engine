@@ -22,7 +22,12 @@ use starknet_core::{
     },
 };
 
-#[derive(Debug, Deserialize, Clone, Encode, Decode)]
+#[derive(Debug, PartialEq, Eq, Deserialize, Clone, Encode, Decode)]
+pub struct Amount {
+    pub amount: Felt,
+}
+
+#[derive(Debug, PartialEq, Eq, Deserialize, Clone, Encode, Decode)]
 pub struct PoolKey {
     token0: Felt,
     token1: Felt,
@@ -62,7 +67,7 @@ pub struct PoolKeyResponse {
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct RouteResponse {
-    pool_key: PoolKey,
+    pool_key: PoolKeyResponse,
     sqrt_ratio_limit: String,
     skip_ahead: u64,
 }
@@ -140,29 +145,31 @@ fn create_rpc_provider(
     Ok(Arc::new(provider))
 }
 
-#[derive(Debug, Encode, Decode)]
+#[derive(Debug, Eq, PartialEq, Encode, Decode)]
 pub struct RouteNode {
     pub pool_key: PoolKey,
     pub sqrt_ratio_limit: Felt,
     pub skip_ahead: u64,
 }
 
-#[derive(Copy, Clone, Debug, Encode, Decode)]
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Encode, Decode)]
 pub struct i129 {
     pub mag: u128,
     pub sign: bool,
 }
 
-#[derive(Debug, Encode, Decode)]
+#[derive(Debug, PartialEq, Eq, Encode, Decode)]
 pub struct TokenAmount {
     pub token: Felt,
     pub amount: i129,
 }
 
-#[derive(Debug, Encode, Decode)]
+pub type SwapArray = Vec<Swap>;
+
+#[derive(Debug, Eq, PartialEq, Encode, Decode)]
 pub struct Swap {
     pub route: Vec<RouteNode>,
-    // pub token_amount: TokenAmount,
+    pub token_amount: TokenAmount,
 }
 
 fn convert_quote_to_swaps(quote: QuoteResponseApi) -> Vec<Swap> {
@@ -178,12 +185,12 @@ fn convert_quote_to_swaps(quote: QuoteResponseApi) -> Vec<Swap> {
 
                     // let pool_key = &r.pool_key;
                     let pool_key = PoolKey {
-                        token0: r.pool_key.token0,
-                        token1: r.pool_key.token1,
+                        token0: Felt::from_hex(&r.pool_key.token0.to_string()).unwrap(),
+                        token1: Felt::from_hex(&r.pool_key.token1.to_string()).unwrap(),
 
-                        fee: r.pool_key.fee,
+                        fee: Felt::from_hex(&r.pool_key.fee.to_string()).unwrap(),
                         tick_spacing: r.pool_key.tick_spacing,
-                        extension: r.pool_key.extension,
+                        extension: Felt::from_hex(&r.pool_key.extension.to_string()).unwrap(),
                     };
 
                     RouteNode {
@@ -198,13 +205,19 @@ fn convert_quote_to_swaps(quote: QuoteResponseApi) -> Vec<Swap> {
             let amount = split.specifiedAmount;
 
             let token = if let Some(first_route) = split.route.first() {
-                first_route.pool_key.token0
+                Felt::from_hex(&first_route.pool_key.token0).unwrap()
             } else {
                 Felt::ZERO
             };
             Swap {
                 route: routes,
-                // token_amount: TokenAmount { token, amount },
+                token_amount: TokenAmount {
+                    token,
+                    amount: i129 {
+                        mag: 10000000000000,
+                        sign: true,
+                    },
+                },
             }
         })
         .collect()
@@ -245,7 +258,7 @@ where
         ExecutionEncoding::New,
     );
 
-    account.set_block_id(Bloc   kId::Tag(BlockTag::Pending));
+    account.set_block_id(BlockId::Tag(BlockTag::Pending));
 
     let account = Arc::new(account);
 
@@ -266,7 +279,7 @@ where
             felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691"),
         ],
         felt!("111"),
-        false,
+        true,
     );
 
     let deployed_address = deployed_res.deployed_address();
@@ -286,18 +299,67 @@ where
 async fn execute_multihop_swap(
     provider: Arc<JsonRpcClient<HttpTransport>>,
     quote: QuoteResponseApi,
-) -> Vec<Swap> {
+) {
     let address = deploy_contract(provider.clone()).await;
 
     let swaps = convert_quote_to_swaps(quote);
     println!("Swaps {:?}", swaps);
     let mut serialized = vec![];
-    for swap in &swaps {
-        let mut swap_serialized = vec![];
-        swap.encode(&mut swap_serialized).unwrap();
-        serialized.push(swap_serialized);
-    }
-    swaps
+    // for swap in &swaps {
+    //     let mut swap_serialized = vec![];
+    //     swap.encode(&mut swap_serialized).unwrap();
+    //     let decoded = Swap::decode(&swap_serialized).unwrap();
+    //     assert!(decoded == *swap, "incorrectly serialized");
+    //     serialized.push(swap_serialized);
+    // }
+    swaps.encode(&mut serialized).unwrap();
+    let swaps_decoded = SwapArray::decode(&serialized).unwrap();
+    assert!(swaps_decoded == swaps, "incorrectly decoded");
+    println!("Encoded swaps {:?}", serialized);
+    println!("decoded swaps {:?}", swaps_decoded);
+
+    // let swap_call = provider
+    //     .clone()
+    //     .call(
+    //         FunctionCall {
+    //             contract_address: address,
+    //             entry_point_selector: selector!("multi_multihop_swap"),
+    //             calldata: serialized,
+    //         },
+    //         BlockId::Tag(BlockTag::Latest),
+    //     )
+    //     .await
+    //     .expect("failed to call contract");
+    // println!("Result {:?}", swap_call);
+
+    let token = "0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691";
+    let amt = Amount {
+        amount: Felt::from_hex(token).unwrap(),
+        // amount: felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691"),
+    };
+
+    println!("Amount {:?}", Felt::from_hex(token).unwrap());
+    println!(
+        "Amount felt! {:?}",
+        felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691")
+    );
+
+    let mut amount_calldata = vec![];
+    amt.encode(&mut amount_calldata).unwrap();
+
+    let owner_call = provider
+        .clone()
+        .call(
+            FunctionCall {
+                contract_address: address,
+                entry_point_selector: selector!("get_owner"),
+                calldata: amount_calldata,
+            },
+            BlockId::Tag(BlockTag::Latest),
+        )
+        .await
+        .expect("failed to call contract");
+    print!("{:?} ", owner_call);
 }
 
 #[tokio::main]
@@ -326,7 +388,7 @@ async fn main() {
             }
 
             let encoded_swaps = execute_multihop_swap(provider, quote).await;
-            println!("Encoded swaps {:?}", encoded_swaps);
+            // println!("Encoded swaps {:?}", encoded_swaps);
         }
         Err(e) => println!("Error fetching Ekubo quote: {}", e),
     }

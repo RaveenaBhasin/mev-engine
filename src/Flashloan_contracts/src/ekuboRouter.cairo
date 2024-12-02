@@ -16,6 +16,12 @@ pub struct TokenAmount {
     pub amount: i129,
 }
 
+#[derive(Serde, Copy, Drop)]
+pub struct Amount {
+    pub amount: ContractAddress,
+}
+
+
 #[derive(Serde, Drop)]
 pub struct Swap {
     pub route: Array<RouteNode>,
@@ -36,6 +42,8 @@ pub trait IEkuboRouter<TContractState> {
 
     // Does multiple multihop swaps
     fn multi_multihop_swap(ref self: TContractState, swaps: Array<Swap>) -> Array<Array<Delta>>;
+
+    fn get_owner(self: @TContractState, amount: Amount) -> ContractAddress;
 }
 
 #[starknet::contract]
@@ -50,6 +58,7 @@ pub mod EkuboRouter {
     use super::{Delta, IEkuboRouter, RouteNode, TokenAmount, Swap};
     use ekubo::types::i129::{i129};
     use core::num::traits::Zero;
+    use super::Amount;
 
     #[abi(embed_v0)]
     impl Clear = ekubo::components::clear::ClearImpl<ContractState>;
@@ -142,6 +151,10 @@ pub mod EkuboRouter {
         #[inline(always)]
         fn multi_multihop_swap(ref self: ContractState, swaps: Array<Swap>) -> Array<Array<Delta>> {
             call_core_with_callback(self.core.read(), @swaps)
+        }
+
+        fn get_owner(self: @ContractState, amount: Amount) -> ContractAddress {
+            self.owner.read()
         }
     }
 }
