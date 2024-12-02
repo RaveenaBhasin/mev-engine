@@ -1,5 +1,4 @@
 pub mod flashloan;
-pub mod shared_locker;
 pub mod ekuboRouter;
 
 pub mod interfaces {
@@ -10,4 +9,5 @@ pub mod interfaces {
 #[cfg(test)]
 pub mod tests {
     pub mod test_flashloan;
+    pub mod test_ekuboRouter;
 }
