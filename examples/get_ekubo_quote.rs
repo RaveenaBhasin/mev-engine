@@ -21,40 +21,74 @@ use starknet_core::{
         BlockId, BlockTag,
     },
 };
+// #[derive(Debug, Deserialize, Clone)]
+// pub struct Route {
+//     pool_key: PoolKey,
+//     sqrt_ratio_limit: Felt,
+//     skip_ahead: u64,
+// }
+//
+// #[derive(Debug, Deserialize, Clone)]
+// pub struct Split {
+//     amount: Felt,
+//     specifiedAmount: Felt,
+//     route: Vec<Route>,
+// }
 
 #[derive(Debug, PartialEq, Eq, Deserialize, Clone, Encode, Decode)]
 pub struct Amount {
     pub amount: Felt,
 }
 
+//-------------------------------------------------
+//-------------------------------------------------
+//             Swap cairo Types
+//-------------------------------------------------
+//-------------------------------------------------
+//-------------------------------------------------
+
+#[derive(Debug, Eq, PartialEq, Encode, Decode)]
+pub struct RouteNode {
+    pub pool_key: PoolKey,
+    pub sqrt_ratio_limit: Felt,
+    pub skip_ahead: u128,
+}
+
+#[derive(Copy, Clone, Eq, PartialEq, Debug, Encode, Decode)]
+pub struct i129 {
+    pub mag: u128,
+    pub sign: bool,
+}
+
+#[derive(Debug, PartialEq, Eq, Encode, Decode)]
+pub struct TokenAmount {
+    pub token: Felt,
+    pub amount: i129,
+}
+
+pub type SwapArray = Vec<Swap>;
+
+#[derive(Debug, Eq, PartialEq, Encode, Decode)]
+pub struct Swap {
+    pub route: Vec<RouteNode>,
+    pub token_amount: TokenAmount,
+}
+
 #[derive(Debug, PartialEq, Eq, Deserialize, Clone, Encode, Decode)]
 pub struct PoolKey {
     token0: Felt,
     token1: Felt,
-    fee: Felt,
-    tick_spacing: u64,
+    fee: u128,
+    tick_spacing: u128,
     extension: Felt,
 }
 
-#[derive(Debug, Deserialize, Clone)]
-pub struct Route {
-    pool_key: PoolKey,
-    sqrt_ratio_limit: Felt,
-    skip_ahead: u64,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct Split {
-    amount: Felt,
-    specifiedAmount: Felt,
-    route: Vec<Route>,
-}
-
-#[derive(Debug, serde::Deserialize, Clone)]
-pub struct QuoteResponse {
-    total: Felt,
-    splits: Vec<Split>,
-}
+//-------------------------------------------------
+//-------------------------------------------------
+//             QuoteResponse Types
+//-------------------------------------------------
+//-------------------------------------------------
+//-------------------------------------------------
 
 #[derive(Debug, Deserialize, Clone)]
 pub struct PoolKeyResponse {
@@ -75,7 +109,8 @@ pub struct RouteResponse {
 #[derive(Debug, Deserialize, Clone)]
 pub struct SplitResponse {
     amount: String,
-    specifiedAmount: String,
+    #[serde(rename = "specifiedAmount")]
+    specified_amount: String,
     route: Vec<RouteResponse>,
 }
 
@@ -119,7 +154,7 @@ async fn print_quote(amount: u64, token_from: &str, token_to: &str, max_splits: 
             for (i, split) in quote.splits.iter().enumerate() {
                 println!("\nSplit {}:", i + 1);
                 println!("  Amount: {}", split.amount);
-                println!("  Specified Amount: {}", split.specifiedAmount);
+                println!("  Specified Amount: {}", split.specified_amount);
                 for (j, route) in split.route.iter().enumerate() {
                     println!("  Route {}:", j + 1);
                     println!("    Pool Key:");
@@ -145,33 +180,6 @@ fn create_rpc_provider(
     Ok(Arc::new(provider))
 }
 
-#[derive(Debug, Eq, PartialEq, Encode, Decode)]
-pub struct RouteNode {
-    pub pool_key: PoolKey,
-    pub sqrt_ratio_limit: Felt,
-    pub skip_ahead: u64,
-}
-
-#[derive(Copy, Clone, Eq, PartialEq, Debug, Encode, Decode)]
-pub struct i129 {
-    pub mag: u128,
-    pub sign: bool,
-}
-
-#[derive(Debug, PartialEq, Eq, Encode, Decode)]
-pub struct TokenAmount {
-    pub token: Felt,
-    pub amount: i129,
-}
-
-pub type SwapArray = Vec<Swap>;
-
-#[derive(Debug, Eq, PartialEq, Encode, Decode)]
-pub struct Swap {
-    pub route: Vec<RouteNode>,
-    pub token_amount: TokenAmount,
-}
-
 fn convert_quote_to_swaps(quote: QuoteResponseApi) -> Vec<Swap> {
     quote
         .splits
@@ -185,24 +193,25 @@ fn convert_quote_to_swaps(quote: QuoteResponseApi) -> Vec<Swap> {
 
                     // let pool_key = &r.pool_key;
                     let pool_key = PoolKey {
-                        token0: Felt::from_hex(&r.pool_key.token0.to_string()).unwrap(),
-                        token1: Felt::from_hex(&r.pool_key.token1.to_string()).unwrap(),
+                        token0: Felt::from_hex(&r.pool_key.token0).unwrap(),
+                        token1: Felt::from_hex(&r.pool_key.token1).unwrap(),
 
-                        fee: Felt::from_hex(&r.pool_key.fee.to_string()).unwrap(),
-                        tick_spacing: r.pool_key.tick_spacing,
+                        fee: u128::from_str_radix(r.pool_key.fee.trim_start_matches("0x"), 16)
+                            .unwrap(),
+                        tick_spacing: r.pool_key.tick_spacing.into(),
                         extension: Felt::from_hex(&r.pool_key.extension.to_string()).unwrap(),
                     };
 
                     RouteNode {
                         pool_key,
-                        sqrt_ratio_limit: Felt::from_hex(&sqrt_ratio_limit).unwrap(),
-                        skip_ahead: r.skip_ahead,
+                        sqrt_ratio_limit: Felt::from_hex(sqrt_ratio_limit).unwrap(),
+                        skip_ahead: r.skip_ahead.into(),
                     }
                 })
                 .collect();
 
             // let amount = split.specifiedAmount.parse::<i128>().unwrap_or_default();
-            let amount = split.specifiedAmount;
+            let amount = split.specified_amount;
 
             let token = if let Some(first_route) = split.route.first() {
                 Felt::from_hex(&first_route.pool_key.token0).unwrap()
@@ -254,7 +263,7 @@ where
         provider,
         signer,
         address,
-        chain_id::MAINNET,
+        chain_id::SEPOLIA,
         ExecutionEncoding::New,
     );
 
@@ -264,36 +273,38 @@ where
 
     let flattened_class = contract_artifact.flatten().unwrap();
 
-    let result = account
-        .declare_v2(Arc::new(flattened_class), compiled_class_hash)
-        .send()
-        .await
-        .unwrap();
+    // let result = account
+    //     .declare_v2(Arc::new(flattened_class), compiled_class_hash)
+    //     .send()
+    //     .await
+    //     .unwrap();
 
-    println!("Successfully declared the class");
+    // println!("Successfully declared the class {:?}", result.class_hash);
 
-    let contract_factory = ContractFactory::new(result.class_hash, account);
-    let deployed_res = contract_factory.deploy_v1(
-        vec![
-            felt!("0x00000005dd3D2F4429AF886cD1a3b08289DBcEa99A294197E9eB43b0e0325b4b"),
-            felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691"),
-        ],
-        felt!("111"),
-        true,
-    );
+    // let contract_factory = ContractFactory::new(class_hash, account);
+    // let deployed_res = contract_factory.deploy_v1(
+    //     vec![
+    //         felt!("0x00000005dd3D2F4429AF886cD1a3b08289DBcEa99A294197E9eB43b0e0325b4b"),
+    //         felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691"),
+    //     ],
+    //     felt!("211"),
+    //     false,
+    // );
 
-    let deployed_address = deployed_res.deployed_address();
-    println!("Deployed Address {:?}", deployed_address);
+    // let deployed_address = deployed_res.deployed_address();
+    // println!("Deployed Address {:?}", deployed_address);
 
-    let deployment_txn = deployed_res
-        .send()
-        .await
-        .expect("Unable to deploy contract");
+    // let deployment_txn = deployed_res
+    //     .send()
+    //     .await
+    //     .expect("Unable to deploy contract");
 
-    println!("Txn hash {:?}", deployment_txn.transaction_hash);
-    println!("Contract deployed success !");
+    // println!("Txn hash {:?}", deployment_txn.transaction_hash);
+    // println!("Contract deployed success !");
 
-    deployed_address
+    // deployed_address
+
+    Felt::from_hex("0x04908e210088083feec6d3dee87ca9e370161b838682b58fde90f53332d8ebd6").unwrap()
 }
 
 async fn execute_multihop_swap(
@@ -318,19 +329,19 @@ async fn execute_multihop_swap(
     println!("Encoded swaps {:?}", serialized);
     println!("decoded swaps {:?}", swaps_decoded);
 
-    // let swap_call = provider
-    //     .clone()
-    //     .call(
-    //         FunctionCall {
-    //             contract_address: address,
-    //             entry_point_selector: selector!("multi_multihop_swap"),
-    //             calldata: serialized,
-    //         },
-    //         BlockId::Tag(BlockTag::Latest),
-    //     )
-    //     .await
-    //     .expect("failed to call contract");
-    // println!("Result {:?}", swap_call);
+    let swap_call = provider
+        .clone()
+        .call(
+            FunctionCall {
+                contract_address: address,
+                entry_point_selector: selector!("multi_multihop_swap"),
+                calldata: serialized,
+            },
+            BlockId::Tag(BlockTag::Latest),
+        )
+        .await
+        .expect("failed to call contract");
+    println!("Result {:?}", swap_call);
 
     let token = "0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691";
     let amt = Amount {
@@ -338,14 +349,15 @@ async fn execute_multihop_swap(
         // amount: felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691"),
     };
 
-    println!("Amount {:?}", Felt::from_hex(token).unwrap());
-    println!(
-        "Amount felt! {:?}",
-        felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691")
-    );
+    // println!("Amount {:?}", Felt::from_hex(token).unwrap());
+    // println!(
+    //     "Amount felt! {:?}",
+    //     felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691")
+    // );
 
     let mut amount_calldata = vec![];
     amt.encode(&mut amount_calldata).unwrap();
+    println!("Amount calldata {:?}", amount_calldata);
 
     let owner_call = provider
         .clone()
@@ -365,15 +377,16 @@ async fn execute_multihop_swap(
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    let rpc_url = "http://0.0.0.0:5050";
+    let rpc_url = "https://starknet-sepolia.public.blastapi.io/rpc/v0_7";
     let provider = create_rpc_provider(rpc_url).unwrap();
-    match get_ekubo_quote(10000000000000, "ETH", "USDC", 1).await {
+    let get_ekubo_quote = get_ekubo_quote(10000000000000, "ETH", "USDC", 1).await;
+    match get_ekubo_quote {
         Ok(quote) => {
             println!("Total: {}", quote.total);
             for (i, split) in quote.splits.iter().enumerate() {
-                println!("\nSplit {}:", i + 1);
+                println!("Split {}:", i + 1);
                 println!("  Amount: {}", split.amount);
-                println!("  Specified Amount: {}", split.specifiedAmount);
+                println!("  Specified Amount: {}", split.specified_amount);
                 for (j, route) in split.route.iter().enumerate() {
                     println!("  Route {}:", j + 1);
                     println!("    Pool Key:");
