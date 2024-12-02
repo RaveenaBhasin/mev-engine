@@ -9,4 +9,5 @@ pub mod interfaces {
 #[cfg(test)]
 pub mod tests {
     pub mod test_flashloan;
+    pub mod test_ekuboRouter;
 }
