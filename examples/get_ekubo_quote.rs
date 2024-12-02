@@ -8,7 +8,7 @@ use starknet::{
     contract::ContractFactory,
     core::{
         codec::{Decode, Encode},
-        types::{Felt, FunctionCall},
+        types::{Felt, FunctionCall, U256},
     },
     macros::{felt, selector},
     providers::{jsonrpc::HttpTransport, JsonRpcClient, Provider},
@@ -50,7 +50,7 @@ pub struct Amount {
 #[derive(Debug, Eq, PartialEq, Encode, Decode)]
 pub struct RouteNode {
     pub pool_key: PoolKey,
-    pub sqrt_ratio_limit: Felt,
+    pub sqrt_ratio_limit: U256,
     pub skip_ahead: u128,
 }
 
@@ -147,31 +147,6 @@ async fn get_ekubo_quote(
     Ok(response)
 }
 
-async fn print_quote(amount: u64, token_from: &str, token_to: &str, max_splits: u64) {
-    match get_ekubo_quote(amount, token_from, token_to, max_splits).await {
-        Ok(quote) => {
-            println!("Total: {}", quote.total);
-            for (i, split) in quote.splits.iter().enumerate() {
-                println!("\nSplit {}:", i + 1);
-                println!("  Amount: {}", split.amount);
-                println!("  Specified Amount: {}", split.specified_amount);
-                for (j, route) in split.route.iter().enumerate() {
-                    println!("  Route {}:", j + 1);
-                    println!("    Pool Key:");
-                    println!("      Token0: {}", route.pool_key.token0);
-                    println!("      Token1: {}", route.pool_key.token1);
-                    println!("      Fee: {}", route.pool_key.fee);
-                    println!("      Tick Spacing: {}", route.pool_key.tick_spacing);
-                    println!("      Extension: {}", route.pool_key.extension);
-                    println!("    Sqrt Ratio Limit: {}", route.sqrt_ratio_limit);
-                    println!("    Skip Ahead: {}", route.skip_ahead);
-                }
-            }
-        }
-        Err(e) => println!("Error fetching Ekubo quote: {}", e),
-    }
-}
-
 fn create_rpc_provider(
     rpc_url: &str,
 ) -> Result<Arc<JsonRpcClient<HttpTransport>>, Box<dyn std::error::Error>> {
@@ -204,7 +179,8 @@ fn convert_quote_to_swaps(quote: QuoteResponseApi) -> Vec<Swap> {
 
                     RouteNode {
                         pool_key,
-                        sqrt_ratio_limit: Felt::from_hex(sqrt_ratio_limit).unwrap(),
+                        sqrt_ratio_limit: U256::from(Felt::from_hex(&r.sqrt_ratio_limit).unwrap())
+                            + U256::from(20454487474956806466920111957593445u128),
                         skip_ahead: r.skip_ahead.into(),
                     }
                 })
@@ -263,7 +239,7 @@ where
         provider,
         signer,
         address,
-        chain_id::SEPOLIA,
+        chain_id::MAINNET,
         ExecutionEncoding::New,
     );
 
@@ -273,38 +249,44 @@ where
 
     let flattened_class = contract_artifact.flatten().unwrap();
 
-    // let result = account
-    //     .declare_v2(Arc::new(flattened_class), compiled_class_hash)
-    //     .send()
-    //     .await
-    //     .unwrap();
+    let result = account
+        .declare_v2(Arc::new(flattened_class), compiled_class_hash)
+        .send()
+        .await;
 
-    // println!("Successfully declared the class {:?}", result.class_hash);
+    match result {
+        Ok(res) => {}
+        Err(e) => {
+            println!("Not able to declare {:?}", e);
+        }
+    }
 
-    // let contract_factory = ContractFactory::new(class_hash, account);
-    // let deployed_res = contract_factory.deploy_v1(
-    //     vec![
-    //         felt!("0x00000005dd3D2F4429AF886cD1a3b08289DBcEa99A294197E9eB43b0e0325b4b"),
-    //         felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691"),
-    //     ],
-    //     felt!("211"),
-    //     false,
-    // );
+    let contract_factory = ContractFactory::new(class_hash, account);
+    let deployed_res = contract_factory.deploy_v1(
+        vec![
+            felt!("0x00000005dd3D2F4429AF886cD1a3b08289DBcEa99A294197E9eB43b0e0325b4b"),
+            felt!("0x064b48806902a367c8598f4f95c305e8c1a1acba5f082d294a43793113115691"),
+        ],
+        felt!("11"),
+        true,
+    );
 
-    // let deployed_address = deployed_res.deployed_address();
-    // println!("Deployed Address {:?}", deployed_address);
+    let deployed_address = deployed_res.deployed_address();
+    println!("Deployed Address {:?}", deployed_address);
 
-    // let deployment_txn = deployed_res
-    //     .send()
-    //     .await
-    //     .expect("Unable to deploy contract");
+    let deployment_txn = deployed_res.send().await;
+    match deployment_txn {
+        Ok(success) => {
+            println!("Txn hash {:?}", success.transaction_hash);
+        }
+        Err(e) => {
+            println!("Could not deploy contract : {:?}", e);
+        }
+    }
 
-    // println!("Txn hash {:?}", deployment_txn.transaction_hash);
-    // println!("Contract deployed success !");
+    deployed_address
 
-    // deployed_address
-
-    Felt::from_hex("0x04908e210088083feec6d3dee87ca9e370161b838682b58fde90f53332d8ebd6").unwrap()
+    // Felt::from_hex("0x04908e210088083feec6d3dee87ca9e370161b838682b58fde90f53332d8ebd6").unwrap()
 }
 
 async fn execute_multihop_swap(
@@ -377,9 +359,9 @@ async fn execute_multihop_swap(
 #[tokio::main]
 async fn main() {
     dotenv().ok();
-    let rpc_url = "https://starknet-sepolia.public.blastapi.io/rpc/v0_7";
+    let rpc_url = "http://0.0.0.0:5050";
     let provider = create_rpc_provider(rpc_url).unwrap();
-    let get_ekubo_quote = get_ekubo_quote(10000000000000, "ETH", "USDC", 1).await;
+    let get_ekubo_quote = get_ekubo_quote(10000000000, "ETH", "USDC", 10).await;
     match get_ekubo_quote {
         Ok(quote) => {
             println!("Total: {}", quote.total);

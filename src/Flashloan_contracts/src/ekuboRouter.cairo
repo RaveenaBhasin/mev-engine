@@ -78,6 +78,7 @@ pub mod EkuboRouter {
     #[abi(embed_v0)]
     impl LockerImpl of ILocker<ContractState> {
         fn locked(ref self: ContractState, id: u32, data: Span<felt252>) -> Span<felt252> {
+            println!("locked 1");
             let core = self.core.read();
 
             let mut swaps = consume_callback_data::<Array<Swap>>(core, data);
@@ -85,6 +86,7 @@ pub mod EkuboRouter {
             let mut token: ContractAddress = Zero::zero();
             let recipient: ContractAddress = self.owner.read();
 
+            println!("locked 2");
             while let Option::Some(swap) = swaps.pop_front() {
                 let mut route = swap.route;
                 let mut token_amount = swap.token_amount;
@@ -94,6 +96,7 @@ pub mod EkuboRouter {
 
                 while let Option::Some(node) = route.pop_front() {
                     let is_token1 = token_amount.token == node.pool_key.token1;
+                    println!("locked 3");
 
                     let delta = core
                         .swap(
@@ -150,6 +153,7 @@ pub mod EkuboRouter {
 
         #[inline(always)]
         fn multi_multihop_swap(ref self: ContractState, swaps: Array<Swap>) -> Array<Array<Delta>> {
+            println!("Multiswap");
             call_core_with_callback(self.core.read(), @swaps)
         }
 
