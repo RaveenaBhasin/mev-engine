@@ -1,6 +1,4 @@
 use dotenv::dotenv;
-use num_bigint::BigUint;
-use num_traits::Num;
 use reqwest::{self, Url};
 use serde::{Deserialize, Serialize};
 use serde_json;
@@ -22,10 +20,7 @@ use starknet_core::{
         BlockId, BlockTag,
     },
 };
-use std::fs::File;
-use std::io::BufReader;
 use std::sync::Arc;
-use tracing::info;
 
 #[derive(Debug, Serialize, Deserialize)]
 #[serde(rename_all = "SCREAMING_SNAKE_CASE")]
@@ -156,8 +151,6 @@ fn convert_quote_to_swaps(quote: QuoteResponseApi, token: Felt) -> Vec<Swap> {
                 .route
                 .iter()
                 .map(|r| {
-                    let sqrt_ratio_limit = &r.sqrt_ratio_limit;
-
                     // let pool_key = &r.pool_key;
                     let pool_key = PoolKey {
                         token0: Felt::from_hex(&r.pool_key.token0).unwrap(),
@@ -242,8 +235,8 @@ where
         .await;
 
     match result {
-        Ok(res) => {}
-        Err(e) => {
+        Ok(_res) => {}
+        Err(_e) => {
             println!("");
         }
     }
@@ -267,7 +260,7 @@ where
             println!("Txn hash {:?}", success.transaction_hash);
         }
         Err(e) => {
-            println!("Could not deploy contract : {:?}", e);
+            // println!("Could not deploy contract : {:?}", e);
         }
     }
 
@@ -340,7 +333,14 @@ async fn main() {
             },
             BlockId::Tag(BlockTag::Latest),
         )
-        .await
-        .expect("failed to call contract");
-    println!("Result {:?}", swap_call);
+        .await;
+
+    match swap_call {
+        Ok(res) => {
+            println!("Executed profitable swap: {:?} ", res);
+        }
+        Err(e) => {
+            println!("Unprofitable swap, rejected");
+        }
+    }
 }
